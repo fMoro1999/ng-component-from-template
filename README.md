@@ -2,9 +2,8 @@
 
 You are probably asking to yourself...
 
-# Why the hell did I bump in here?!
-
-# Why should I install another s\*\*\*\*y vscode extension?
+## Why the hell did I bump in here?!
+## Why should I install another s\*\*\*\*y vscode extension?
 
 You will answer by yourself in a couple of moments; <strong>just let me explain!</strong>
 How many times you said "I will split my gigantic Angular component into smaller ones later, I promise..."?
