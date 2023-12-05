@@ -11,7 +11,7 @@ import {
   askForNewComponentNameAsync,
   askForNewComponentPathAsync,
   createFolderRecursivelyAsync,
-  getCurrentWorkspaceAbsolutPath,
+  getCurrentWorkspaceAbsolutePath,
   getHighlightedTextAsync,
   isPathLike,
   readTextFromClipboardAsync,
@@ -44,7 +44,7 @@ export function activate(context: vscode.ExtensionContext) {
         : await askForNewComponentPathAsync();
 
       const componentPath = path.join(
-        getCurrentWorkspaceAbsolutPath(),
+        getCurrentWorkspaceAbsolutePath(),
         relativeComponentPath
       );
 

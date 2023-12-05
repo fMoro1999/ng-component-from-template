@@ -207,7 +207,7 @@ export const stringifyInputProps = (outputsProperties: string[]) =>
     '// Inputs\n\t\t'
   ) ?? '';
 
-export const getCurrentWorkspaceAbsolutPath = () =>
+export const getCurrentWorkspaceAbsolutePath = () =>
   vscode.workspace.workspaceFolders!.at(0)!.uri.path;
 
 export const readTextFromClipboardAsync = async () =>
