@@ -2,9 +2,8 @@
 
 You are probably asking to yourself...
 
-# Why the hell did I bump in here?!
-
-# Why should I install another s\*\*\*\*y vscode extension?
+## Why the hell did I bump in here?!
+## Why should I install another s\*\*\*\*y vscode extension?
 
 You will answer by yourself in a couple of moments; <strong>just let me explain!</strong>
 How many times you said "I will split my gigantic Angular component into smaller ones later, I promise..."?
@@ -14,7 +13,7 @@ If the answer is "never", or just "sometimes", there are two possible scenarios
 1. You are literally perfect. You do not even know what procrastination is
 2. As 90% of programmers, you are lazy. That's it 🤭
 
-Now that only real Angular devs are remained, let's deep dive into what this extension deals with.
+Now that only real Angular devs are here, let's deep dive into what this extension deals with.
 
 ## Features
 
