@@ -182,7 +182,7 @@ export const createComponentTs = ({
   @Component({
     standalone: true,
     imports: [],
-    selector: ${dasherizedComponentName},
+    selector: '${dasherizedComponentName}',
     templateUrl: './${dasherizedComponentName}.component.html',
     styleUrls: ['./${dasherizedComponentName}.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush,
