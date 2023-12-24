@@ -105,7 +105,8 @@ export const isEmptyDirectoryAsync = async (path: string) => {
   const folderName = path.split('/').pop();
   console.log(`Detected ${folderName} folderName`);
 
-  return fs.readdirSync(path).length === 0;
+  const directory = await fs.promises.readdir(path);
+  return directory?.length === 0;
 };
 
 export async function createFolderRecursivelyAsync(fullPath: string) {
@@ -138,12 +139,12 @@ export const createFileAsync = async (path: string, content: string) => {
     return false;
   }
 
-  await fs.writeFile(path, content, (error) => {
-    if (error) {
-      console.error(error);
-      showErrorAsync(humanReadableErrorMessage);
-    }
-  });
+  try {
+    await fs.promises.writeFile(path, content);
+  } catch (error) {
+    console.error(error);
+    showErrorAsync(humanReadableErrorMessage);
+  }
 
   return true;
 };
