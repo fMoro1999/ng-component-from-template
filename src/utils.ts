@@ -186,7 +186,7 @@ export const createComponentTs = ({
     styleUrls: ['./${dasherizedComponentName}.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush,
   })
-  export default class ${component} {
+  export class ${component} {
     ${inputs}
 
     ${outputs}
