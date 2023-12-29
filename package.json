@@ -7,6 +7,7 @@
   "name": "ng-component-from-template",
   "displayName": "Angular Component From Template",
   "description": "An handy to scaffold components from the selected text starting on the selected text inside an Angular component template",
+  "icon": "logo.jpeg",
   "version": "0.0.2",
   "engines": {
     "vscode": "^1.84.0"
