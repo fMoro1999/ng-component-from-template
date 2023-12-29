@@ -2,17 +2,19 @@
 import fs from 'fs';
 import * as vscode from 'vscode';
 import {
+  addToImportsIfStandalone,
   createComponentTemplateFromSelectedTextAsync,
   createComponentTsFromSelectedTextAsync,
   createEmptyComponentScssAsync,
   detectComponentProperties,
+  replaceHighlightedText,
 } from './core';
 import {
   askForNewComponentNameAsync,
   askForNewComponentPathAsync,
   createFolderRecursivelyAsync,
   getCurrentWorkspaceAbsolutePath,
-  getHighlightedTextAsync,
+  getHighlightedText,
   isPathLike,
   readTextFromClipboardAsync,
   showInfoAsync,
@@ -50,7 +52,7 @@ export function activate(context: vscode.ExtensionContext) {
 
       const dasherizedComponentName: string =
         await askForNewComponentNameAsync();
-      const template: string = getHighlightedTextAsync();
+      const template: string = getHighlightedText();
       const bindingProperties: Map<'inputs' | 'outputs', string[]> =
         detectComponentProperties(template);
 
@@ -84,8 +86,10 @@ export function activate(context: vscode.ExtensionContext) {
         dasherizedComponentName,
       });
 
-      await showInfoAsync(`Done.
-      Enjoy!`);
+      await replaceHighlightedText(dasherizedComponentName);
+      await addToImportsIfStandalone(dasherizedComponentName, componentPath);
+
+      await showInfoAsync('Enjoy! ❤️‍🔥');
     }
   );
 
