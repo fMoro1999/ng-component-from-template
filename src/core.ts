@@ -10,6 +10,7 @@ import { Component, Type } from './models';
 import {
   createComponentTs,
   createFileAsync,
+  findFirstBarrelPath,
   getComponentDecoratorConfig,
   getHighlightedTextPathAsync as getHighlightedTextPath,
   replaceHighlightedTextWithAsync,
@@ -115,13 +116,10 @@ export const replaceHighlightedText = async (
   await replaceHighlightedTextWithAsync(componentSelector);
 };
 
-export const addToImportsIfStandalone = async (
-  dasherizedComponentName: string,
-  componentPath: string
+export const addToClientImportsIfStandalone = async (
+  dasherizedComponentName: string
 ) => {
-  const componentClassName = `${toComponentClassName(
-    dasherizedComponentName
-  )}Component`;
+  const componentClassName = toComponentClassName(dasherizedComponentName);
   // #1
   // Get the current editor selection file path
   const currentFilePath = getHighlightedTextPath();
@@ -176,9 +174,9 @@ export const addToImportsIfStandalone = async (
       return;
     }
 
-    const clientComponentClassName = `${toComponentClassName(
+    const clientComponentClassName = toComponentClassName(
       dasherizedComponentName
-    )}Component`;
+    );
 
     const clientComponentClass = classes.find(
       (classDeclaration) =>
@@ -241,12 +239,8 @@ export const addToImportsIfStandalone = async (
       initializer.replaceWithText(stringifiedNewValue);
     }
 
-    // Format the modified file
-    await sourceFile.formatText({
-      indentSize: 2,
-    });
-
-    // Save the modified file
+    sourceFile.fixMissingImports();
+    sourceFile.formatText({ indentSize: 2 });
     await sourceFile.save();
   } else {
     // If not, just do nothing and return (maybe it is better to add it to its referring ngModule)
@@ -254,4 +248,50 @@ export const addToImportsIfStandalone = async (
     Standalone components were introduced with v.14;
     I suggest to you to migrate your component to standalone!`);
   }
+};
+
+export const addToDeclaringModuleExports = async (
+  dasherizedComponentName: string,
+  componentFolderPath: string
+) => {
+  if (!dasherizedComponentName) {
+    console.warn(
+      'Cannot add component to exports since the component name is null or empty!'
+    );
+    return;
+  }
+
+  if (!componentFolderPath) {
+    console.warn(
+      'Cannot add component to exports since the component folder path is null or empty!'
+    );
+    return;
+  }
+
+  const firstDeclaringBarrelFolderPath = await findFirstBarrelPath(
+    componentFolderPath
+  );
+  if (!firstDeclaringBarrelFolderPath) {
+    console.warn(
+      'Cannot find a barrel file to add the component to exports! - Aborting'
+    );
+    return;
+  }
+  const barrelFilePath = path.join(firstDeclaringBarrelFolderPath, 'index.ts');
+
+  const project = new Project();
+  const sourceFile = project.addSourceFileAtPath(barrelFilePath);
+
+  const componentClassName = toComponentClassName(dasherizedComponentName);
+  const moduleSpecifier = `./${path.relative(
+    firstDeclaringBarrelFolderPath,
+    `${componentFolderPath}/${dasherizedComponentName}.component`
+  )}`;
+
+  sourceFile.addExportDeclaration({
+    namedExports: [componentClassName],
+    moduleSpecifier,
+  });
+
+  await sourceFile.save();
 };

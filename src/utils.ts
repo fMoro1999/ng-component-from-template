@@ -171,7 +171,7 @@ export const camelize = (text: string) => text.replace(/-\w/g, clearAndUpper);
 export const pascalize = (text: string) =>
   text.replace(/(^\w|-\w)/g, clearAndUpper);
 export const toComponentClassName = (dasherizedComponentName: string) =>
-  pascalize(dasherizedComponentName).replace('-', '');
+  `${pascalize(dasherizedComponentName).replace('-', '')}Component`;
 export const clearAndUpper = (text: string) =>
   text.replace(/-/, '').toUpperCase();
 
@@ -201,9 +201,7 @@ export const createComponentTs = ({
   dasherizedComponentName: string;
   bindingProperties: Map<'inputs' | 'outputs', string[]>;
 }) => {
-  let component = toComponentClassName(dasherizedComponentName);
-
-  component = `${component}Component`;
+  const component = toComponentClassName(dasherizedComponentName);
 
   const inputProps = bindingProperties.get('inputs');
   const hasAnyInput = !!inputProps?.length;
@@ -285,8 +283,7 @@ export const findFirstBarrelPath = async (
   return undefined;
 };
 
-export const getParentFolderPath = (pathName: string) =>
-  path.basename(path.dirname(pathName));
+export const getParentFolderPath = (pathName: string) => path.dirname(pathName);
 
 export const getComponentDecoratorConfig = async (tsFilePath: string) => {
   if (!fs.existsSync(tsFilePath)) {

@@ -2,7 +2,8 @@
 import fs from 'fs';
 import * as vscode from 'vscode';
 import {
-  addToImportsIfStandalone,
+  addToClientImportsIfStandalone,
+  addToDeclaringModuleExports,
   createComponentTemplateFromSelectedTextAsync,
   createComponentTsFromSelectedTextAsync,
   createEmptyComponentScssAsync,
@@ -87,7 +88,11 @@ export function activate(context: vscode.ExtensionContext) {
       });
 
       await replaceHighlightedText(dasherizedComponentName);
-      await addToImportsIfStandalone(dasherizedComponentName, componentPath);
+      await addToDeclaringModuleExports(
+        dasherizedComponentName,
+        componentFolderPath
+      );
+      await addToClientImportsIfStandalone(dasherizedComponentName);
 
       await showInfoAsync('Enjoy! ❤️‍🔥');
     }
