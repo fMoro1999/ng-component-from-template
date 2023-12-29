@@ -86,4 +86,4 @@ const NATIVE_DOM_EVENTS = new Set([
   'wheel',
 ]);
 
-export const isBannedEvent = (key: string) => !NATIVE_DOM_EVENTS.has(key);
+export const isBannedEvent = (key: string) => NATIVE_DOM_EVENTS.has(key);
