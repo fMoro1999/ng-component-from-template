@@ -17,7 +17,15 @@
         "command": "ng-component-from-template.createAngularComponent",
         "title": "Create component from highlighted text"
       }
-    ]
+    ],
+    "menus": {
+      "explorer/context": [
+        {
+          "when": "resourceLangId == html",
+          "command": "ng-component-from-template.createAngularComponent"
+        }
+      ]
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run package",
