@@ -6,6 +6,7 @@ import {
   PropertyAssignment,
   ts,
 } from 'ts-morph';
+import { isBannedEvent } from './constants';
 import { Component, Type } from './models';
 import {
   createComponentTs,
@@ -100,7 +101,9 @@ export const detectComponentProperties: (
   }
   while ((match = outputRegex.exec(template)) !== null) {
     const output = match.at(1)!;
-    outputs.push(output);
+    if (!isBannedEvent(output)) {
+      outputs.push(output);
+    }
   }
 
   return new Map([
