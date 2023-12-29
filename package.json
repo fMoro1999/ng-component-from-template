@@ -1,4 +1,9 @@
 {
+  "author": {
+    "name": "Francesco Moro",
+    "email": "fra.moro.99@gmail.com",
+    "url": "https://github.com/fMoro1999"
+  },
   "name": "ng-component-from-template",
   "displayName": "Angular Component From Template",
   "description": "An handy to scaffold components from the selected text starting on the selected text inside an Angular component template",
