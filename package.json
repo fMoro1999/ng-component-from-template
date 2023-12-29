@@ -2,9 +2,13 @@
   "name": "ng-component-from-template",
   "displayName": "Angular Component From Template",
   "description": "An handy to scaffold components from the selected text starting on the selected text inside an Angular component template",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "engines": {
     "vscode": "^1.84.0"
+  },
+  "repository": {
+    "url": "https://github.com/fMoro1999/ng-component-from-template",
+    "type": "git"
   },
   "categories": [
     "Other"
@@ -28,7 +32,6 @@
     }
   },
   "scripts": {
-    "vscode:prepublish": "npm run package",
     "compile": "webpack",
     "watch": "webpack --watch",
     "package": "./node_modules/.bin/vsce package",
