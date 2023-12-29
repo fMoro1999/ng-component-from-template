@@ -1,4 +1,4 @@
-export const NATIVE_DOM_EVENTS = [
+const NATIVE_DOM_EVENTS = new Set([
   'abort',
   'afterprint',
   'animationend',
@@ -84,4 +84,6 @@ export const NATIVE_DOM_EVENTS = [
   'volumechange',
   'waiting',
   'wheel',
-];
+]);
+
+export const isBannedEvent = (key: string) => !NATIVE_DOM_EVENTS.has(key);
