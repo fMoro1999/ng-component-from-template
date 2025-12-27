@@ -9,7 +9,7 @@ import {
 import { isBannedEvent } from './constants';
 import { Component, Type } from './models';
 import {
-  createComponentTs as createComponentTsAsync,
+  createComponentTsAsync,
   createFileAsync,
   findFirstBarrelPath,
   getComponentDecoratorConfig,
@@ -45,7 +45,7 @@ export const createComponentTsFromSelectedTextAsync = async ({
 }: {
   componentPath: string;
   dasherizedComponentName: string;
-  bindingProperties: Map<'inputs' | 'outputs', string[]>;
+  bindingProperties: Map<'inputs' | 'outputs' | 'models', string[]>;
 }) => {
   const fullPath = path.join(
     componentPath,
@@ -80,28 +80,42 @@ export const createEmptyComponentScssAsync = async ({
 
 export const detectComponentMetadata: (
   template: string
-) => Map<'inputs' | 'outputs', string[]> = (template: string) => {
+) => Map<'inputs' | 'outputs' | 'models', string[]> = (template: string) => {
   if (!template) {
     showWarningAsync(
-      'Cannot detect input since the highlighted template is empty!'
+      'Cannot detect properties since the highlighted template is empty!'
     );
     return new Map();
   }
 
   const inputs: string[] = [];
   const outputs: string[] = [];
+  const models: string[] = [];
 
   const inputRegex = /\[(\w+)\]="(.+?)"/g;
   const outputRegex = /\((\w+)\)="(.+?)"/g;
+  const modelRegex = /\[\((\w+)\)\]="(.+?)"/g;
 
   let match;
+
+  // First detect two-way bindings
+  while ((match = modelRegex.exec(template)) !== null) {
+    const model = match.at(1)!;
+    models.push(model);
+  }
+
+  // Detect "regular" inputs - skip if already in models
   while ((match = inputRegex.exec(template)) !== null) {
     const input = match.at(1)!;
-    inputs.push(input);
+    if (!models.includes(input)) {
+      inputs.push(input);
+    }
   }
+
+  // Detect outputs - skip if already in models
   while ((match = outputRegex.exec(template)) !== null) {
     const output = match.at(1)!;
-    if (!isBannedEvent(output)) {
+    if (!isBannedEvent(output) && !models.includes(output)) {
       outputs.push(output);
     }
   }
@@ -109,6 +123,7 @@ export const detectComponentMetadata: (
   return new Map([
     ['inputs', inputs],
     ['outputs', outputs],
+    ['models', models],
   ]);
 };
 

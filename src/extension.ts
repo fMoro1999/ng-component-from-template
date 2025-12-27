@@ -54,7 +54,7 @@ export function activate(context: vscode.ExtensionContext) {
       const dasherizedComponentName: string =
         await askForNewComponentNameAsync();
       const template: string = getHighlightedText();
-      const bindingProperties: Map<'inputs' | 'outputs', string[]> =
+      const bindingProperties: Map<'inputs' | 'outputs' | 'models', string[]> =
         detectComponentMetadata(template);
 
       const componentFolderPath = path.join(

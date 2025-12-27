@@ -9,10 +9,13 @@ import { Component } from './models';
 import { ValidatorFnLike } from './models/utils.types';
 import {
   SignalInput,
+  SignalModel,
   SignalOutput,
   generateDecoratorInputs,
+  generateDecoratorModels,
   generateDecoratorOutputs,
   generateSignalInputs,
+  generateSignalModels,
   generateSignalOutputs,
 } from './signal-generator';
 import { requiredValidator } from './validators';
@@ -205,12 +208,12 @@ export const createFileAsync = async (path: string, content: string) => {
   return true;
 };
 
-export const createComponentTs = async ({
+export const createComponentTsAsync = async ({
   dasherizedComponentName,
   bindingProperties,
 }: {
   dasherizedComponentName: string;
-  bindingProperties: Map<'inputs' | 'outputs', string[]>;
+  bindingProperties: Map<'inputs' | 'outputs' | 'models', string[]>;
 }) => {
   const component = toComponentClassName(dasherizedComponentName);
 
@@ -223,29 +226,43 @@ export const createComponentTs = async ({
 
   const inputProps = bindingProperties.get('inputs') || [];
   const outputProps = bindingProperties.get('outputs') || [];
+  const modelProps = bindingProperties.get('models') || []; // NEW
 
-  // Convert to signal format (all required by default for now)
   const signalInputs: SignalInput[] = inputProps.map((name) => ({
     name,
-    isRequired: true, // You can enhance this later with smart detection
+    isRequired: true,
   }));
 
   const signalOutputs: SignalOutput[] = outputProps.map((name) => ({ name }));
 
+  const signalModels: SignalModel[] = modelProps.map((name) => ({
+    name,
+    isRequired: true,
+  }));
+
   const hasAnyInput = signalInputs.length > 0;
   const hasAnyOutput = signalOutputs.length > 0;
+  const hasAnyModel = signalModels.length > 0;
 
-  const imports = generateNgCoreImports(hasAnyInput, hasAnyOutput, useSignals);
+  const imports = generateNgCoreImports(
+    hasAnyInput,
+    hasAnyOutput,
+    hasAnyModel,
+    useSignals
+  );
 
   let inputs = '';
   let outputs = '';
+  let models = '';
 
   if (useSignals) {
     inputs = generateSignalInputs(signalInputs);
     outputs = generateSignalOutputs(signalOutputs);
+    models = generateSignalModels(signalModels);
   } else {
     inputs = generateDecoratorInputs(signalInputs);
     outputs = generateDecoratorOutputs(signalOutputs);
+    models = generateDecoratorModels(signalModels);
   }
 
   return `
@@ -263,6 +280,8 @@ export const createComponentTs = async ({
     ${inputs}
 
     ${outputs}
+
+    ${models}
   }
   `.trim();
 };
