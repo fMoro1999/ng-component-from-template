@@ -1,10 +1,12 @@
 export interface SignalInput {
   name: string;
   isRequired: boolean;
+  inferredType?: string;
 }
 
 export interface SignalOutput {
   name: string;
+  inferredType?: string;
 }
 
 export const generateSignalInputs = (inputs: SignalInput[]): string => {
@@ -12,9 +14,10 @@ export const generateSignalInputs = (inputs: SignalInput[]): string => {
     return '';
   }
 
-  const lines = inputs.map(({ name, isRequired }) => {
+  const lines = inputs.map(({ name, isRequired, inferredType }) => {
     const fn = isRequired ? 'input.required' : 'input';
-    return `${name} = ${fn}<unknown>();`;
+    const type = inferredType || 'unknown';
+    return `${name} = ${fn}<${type}>();`;
   });
 
   return `// Inputs\n\t\t${lines.join('\n\t\t')}`;
@@ -25,8 +28,9 @@ export const generateSignalOutputs = (outputs: SignalOutput[]): string => {
     return '';
   }
 
-  const lines = outputs.map(({ name }) => {
-    return `${name} = output<unknown>();`;
+  const lines = outputs.map(({ name, inferredType }) => {
+    const type = inferredType || 'unknown';
+    return `${name} = output<${type}>();`;
   });
 
   return `// Outputs\n\t\t${lines.join('\n\t\t')}`;
@@ -37,10 +41,11 @@ export const generateDecoratorInputs = (inputs: SignalInput[]): string => {
     return '';
   }
 
-  const lines = inputs.map(({ name, isRequired }) => {
+  const lines = inputs.map(({ name, isRequired, inferredType }) => {
     const decorator = isRequired ? `@Input({required: true})` : `@Input()`;
     const modifier = isRequired ? '!' : '';
-    return `${decorator} ${name}${modifier}: unknown;`;
+    const type = inferredType || 'unknown';
+    return `${decorator} ${name}${modifier}: ${type};`;
   });
 
   return `// Inputs\n\t\t${lines.join('\n\t\t')}`;
@@ -51,8 +56,9 @@ export const generateDecoratorOutputs = (outputs: SignalOutput[]): string => {
     return '';
   }
 
-  const lines = outputs.map(({ name }) => {
-    return `@Output() ${name} = new EventEmitter<unknown>();`;
+  const lines = outputs.map(({ name, inferredType }) => {
+    const type = inferredType || 'unknown';
+    return `@Output() ${name} = new EventEmitter<${type}>();`;
   });
 
   return `// Outputs\n\t\t${lines.join('\n\t\t')}`;

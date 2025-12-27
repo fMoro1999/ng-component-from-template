@@ -2,13 +2,13 @@
 import fs from 'fs';
 import * as vscode from 'vscode';
 import {
-  addToClientImportsIfStandalone,
-  addToDeclaringModuleExports,
+  addToClientImportsIfStandaloneAsync,
+  addToDeclaringModuleExportsAsync,
   createComponentTemplateFromSelectedTextAsync,
   createComponentTsFromSelectedTextAsync,
   createEmptyComponentScssAsync,
   detectComponentMetadata,
-  replaceHighlightedText,
+  replaceHighlightedTextAsync,
 } from './core';
 import {
   askForNewComponentNameAsync,
@@ -87,12 +87,12 @@ export function activate(context: vscode.ExtensionContext) {
         dasherizedComponentName,
       });
 
-      await replaceHighlightedText(dasherizedComponentName);
-      await addToDeclaringModuleExports(
+      await replaceHighlightedTextAsync(dasherizedComponentName);
+      await addToDeclaringModuleExportsAsync(
         dasherizedComponentName,
         componentFolderPath
       );
-      await addToClientImportsIfStandalone(dasherizedComponentName);
+      await addToClientImportsIfStandaloneAsync(dasherizedComponentName);
 
       await showInfoAsync('Enjoy! ❤️‍🔥');
     }

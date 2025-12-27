@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { getCurrentWorkspaceAbsolutePath } from './utils';
 
-export const detectAngularVersion = async (): Promise<number | null> => {
+export const detectAngularVersionAsync = async (): Promise<number | null> => {
   try {
     const workspacePath = getCurrentWorkspaceAbsolutePath();
     const packageJsonPath = path.join(workspacePath, 'package.json');
@@ -32,7 +32,7 @@ export const detectAngularVersion = async (): Promise<number | null> => {
   }
 };
 
-export const shouldUseSignalApis = async (
+export const shouldUseSignalApisAsync = async (
   userPreference: boolean,
   autoDetect: boolean,
   minVersion: number
@@ -45,7 +45,7 @@ export const shouldUseSignalApis = async (
     return true; // Use signals if user wants them and auto-detect is off
   }
 
-  const version = await detectAngularVersion();
+  const version = await detectAngularVersionAsync();
 
   // Signals were introduced in Angular 16, but fully stable in 17
   return version !== null && version >= minVersion;

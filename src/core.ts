@@ -11,8 +11,8 @@ import { Component, Type } from './models';
 import {
   createComponentTsAsync,
   createFileAsync,
-  findFirstBarrelPath,
-  getComponentDecoratorConfig,
+  findFirstBarrelPath as findFirstBarrelPathAsync,
+  getComponentDecoratorConfigAsync,
   getHighlightedTextPathAsync as getHighlightedTextPath,
   replaceHighlightedTextWithAsync,
   showErrorAsync,
@@ -127,14 +127,14 @@ export const detectComponentMetadata: (
   ]);
 };
 
-export const replaceHighlightedText = async (
+export const replaceHighlightedTextAsync = async (
   dasherizedComponentName: string
 ) => {
   const componentSelector = `<${dasherizedComponentName}></${dasherizedComponentName}>`;
   await replaceHighlightedTextWithAsync(componentSelector);
 };
 
-export const addToClientImportsIfStandalone = async (
+export const addToClientImportsIfStandaloneAsync = async (
   dasherizedComponentName: string
 ) => {
   const componentClassName = toComponentClassName(dasherizedComponentName);
@@ -147,7 +147,9 @@ export const addToClientImportsIfStandalone = async (
   // Check from its .ts file if it is a standalone component
   let componentDecoratorConfig: Partial<Component> | undefined;
   try {
-    componentDecoratorConfig = await getComponentDecoratorConfig(tsFilePath);
+    componentDecoratorConfig = await getComponentDecoratorConfigAsync(
+      tsFilePath
+    );
   } catch (error) {
     console.error(error);
     await showWarningAsync(
@@ -268,7 +270,7 @@ export const addToClientImportsIfStandalone = async (
   }
 };
 
-export const addToDeclaringModuleExports = async (
+export const addToDeclaringModuleExportsAsync = async (
   dasherizedComponentName: string,
   componentFolderPath: string
 ) => {
@@ -286,7 +288,7 @@ export const addToDeclaringModuleExports = async (
     return;
   }
 
-  const firstDeclaringBarrelFolderPath = await findFirstBarrelPath(
+  const firstDeclaringBarrelFolderPath = await findFirstBarrelPathAsync(
     componentFolderPath
   );
   if (!firstDeclaringBarrelFolderPath) {

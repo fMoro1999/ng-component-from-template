@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import * as ts from 'typescript';
 import * as vscode from 'vscode';
-import { shouldUseSignalApis } from './angular-version-detector';
+import { shouldUseSignalApisAsync } from './angular-version-detector';
 import { getExtensionConfig } from './config';
 import { generateNgCoreImports } from './import-generator';
 import { Component } from './models';
@@ -218,7 +218,7 @@ export const createComponentTsAsync = async ({
   const component = toComponentClassName(dasherizedComponentName);
 
   const config = getExtensionConfig();
-  const useSignals = await shouldUseSignalApis(
+  const useSignals = await shouldUseSignalApisAsync(
     config.useSignalApis,
     config.detectAngularVersion,
     config.minimumAngularVersion
@@ -333,7 +333,7 @@ export const findFirstBarrelPath = async (
 
 export const getParentFolderPath = (pathName: string) => path.dirname(pathName);
 
-export const getComponentDecoratorConfig = async (tsFilePath: string) => {
+export const getComponentDecoratorConfigAsync = async (tsFilePath: string) => {
   if (!fs.existsSync(tsFilePath)) {
     throw new Error(
       'The specified file cannot be opened. It seems it does not exist...'
@@ -350,9 +350,8 @@ export const getComponentDecoratorConfig = async (tsFilePath: string) => {
     throw new Error('The file is empty. Cannot parse the content...');
   }
 
-  const componentDecoratorConfig = await parseComponentDeclarationConfiguration(
-    fileContent
-  );
+  const componentDecoratorConfig =
+    await parseComponentDeclarationConfigurationAsync(fileContent);
   const isComponent = !!componentDecoratorConfig;
   if (!isComponent) {
     throw new Error(
@@ -363,7 +362,7 @@ export const getComponentDecoratorConfig = async (tsFilePath: string) => {
   return componentDecoratorConfig;
 };
 
-export const addComponentToClientImports = async (tsFilePath: string) => {
+export const addComponentToClientImportsAsync = async (tsFilePath: string) => {
   if (!fs.existsSync(tsFilePath)) {
     await showErrorAsync(
       `Something went wrong... ${tsFilePath} was not found. Aborting...`
@@ -387,7 +386,7 @@ export const addComponentToClientImports = async (tsFilePath: string) => {
     const { buffer } = openedFile;
     const fileContent = buffer.toString();
     const componentDecoratorConfig =
-      await parseComponentDeclarationConfiguration(fileContent);
+      await parseComponentDeclarationConfigurationAsync(fileContent);
     const isComponent = !!componentDecoratorConfig;
     if (!isComponent) {
       await showErrorAsync(
@@ -416,7 +415,7 @@ export const addComponentToClientImports = async (tsFilePath: string) => {
   }
 };
 
-const parseComponentDeclarationConfiguration = async (content: string) => {
+const parseComponentDeclarationConfigurationAsync = async (content: string) => {
   const sourceFile = ts.createSourceFile(
     'temp.ts',
     content,
@@ -424,7 +423,7 @@ const parseComponentDeclarationConfiguration = async (content: string) => {
   );
 
   const parsedDecoratorArgs: Partial<Component> | undefined =
-    await parseJsonArgumentOfComponentDecorator(sourceFile);
+    await parseJsonArgumentOfComponentDecoratorAsync(sourceFile);
 
   if (!parsedDecoratorArgs || !Object.keys(parsedDecoratorArgs).length) {
     throw new Error(
@@ -470,7 +469,7 @@ function findDecoratorCallExpressionByName(
   return componentDecorator;
 }
 
-export const parseJsonArgumentOfComponentDecorator = async (
+export const parseJsonArgumentOfComponentDecoratorAsync = async (
   sourceFile: ts.SourceFile
 ) => {
   const decoratorCallExpression: ts.CallExpression | undefined =
