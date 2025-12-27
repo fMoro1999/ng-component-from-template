@@ -7,7 +7,7 @@ import {
   createComponentTemplateFromSelectedTextAsync,
   createComponentTsFromSelectedTextAsync,
   createEmptyComponentScssAsync,
-  detectComponentProperties,
+  detectComponentMetadata,
   replaceHighlightedText,
 } from './core';
 import {
@@ -55,7 +55,7 @@ export function activate(context: vscode.ExtensionContext) {
         await askForNewComponentNameAsync();
       const template: string = getHighlightedText();
       const bindingProperties: Map<'inputs' | 'outputs', string[]> =
-        detectComponentProperties(template);
+        detectComponentMetadata(template);
 
       const componentFolderPath = path.join(
         componentPath,

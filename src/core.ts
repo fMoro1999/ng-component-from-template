@@ -78,7 +78,7 @@ export const createEmptyComponentScssAsync = async ({
   return hasFileCreationSucceeded;
 };
 
-export const detectComponentProperties: (
+export const detectComponentMetadata: (
   template: string
 ) => Map<'inputs' | 'outputs', string[]> = (template: string) => {
   if (!template) {
