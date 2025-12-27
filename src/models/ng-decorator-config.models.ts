@@ -388,12 +388,12 @@ export declare enum ChangeDetectionStrategy {
    * Change detection can still be explicitly invoked.
    * This strategy applies to all child directives and cannot be overridden.
    */
-  OnPush = 0,
+  OnPush = 'OnPush',
   /**
    * Use the default `CheckAlways` strategy, in which change detection is automatic until
    * explicitly deactivated.
    */
-  Default = 1,
+  Default = 'Default',
 }
 
 /**
