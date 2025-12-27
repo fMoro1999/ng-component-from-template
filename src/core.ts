@@ -9,7 +9,7 @@ import {
 import { isBannedEvent } from './constants';
 import { Component, Type } from './models';
 import {
-  createComponentTs,
+  createComponentTs as createComponentTsAsync,
   createFileAsync,
   findFirstBarrelPath,
   getComponentDecoratorConfig,
@@ -52,7 +52,7 @@ export const createComponentTsFromSelectedTextAsync = async ({
     `${dasherizedComponentName}.component.ts`
   );
 
-  const content = createComponentTs({
+  const content = await createComponentTsAsync({
     dasherizedComponentName,
     bindingProperties,
   });

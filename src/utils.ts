@@ -2,8 +2,19 @@ import fs from 'fs';
 import path from 'path';
 import * as ts from 'typescript';
 import * as vscode from 'vscode';
+import { shouldUseSignalApis } from './angular-version-detector';
+import { getExtensionConfig } from './config';
+import { generateNgCoreImports } from './import-generator';
 import { Component } from './models';
 import { ValidatorFnLike } from './models/utils.types';
+import {
+  SignalInput,
+  SignalOutput,
+  generateDecoratorInputs,
+  generateDecoratorOutputs,
+  generateSignalInputs,
+  generateSignalOutputs,
+} from './signal-generator';
 import { requiredValidator } from './validators';
 
 export const askForNewComponentPathAsync = async () => {
@@ -194,7 +205,7 @@ export const createFileAsync = async (path: string, content: string) => {
   return true;
 };
 
-export const createComponentTs = ({
+export const createComponentTs = async ({
   dasherizedComponentName,
   bindingProperties,
 }: {
@@ -203,24 +214,42 @@ export const createComponentTs = ({
 }) => {
   const component = toComponentClassName(dasherizedComponentName);
 
-  const inputProps = bindingProperties.get('inputs');
-  const hasAnyInput = !!inputProps?.length;
-  let inputs = '';
-  if (hasAnyInput) {
-    inputs = stringifyInputProps(inputProps);
-  }
+  const config = getExtensionConfig();
+  const useSignals = await shouldUseSignalApis(
+    config.useSignalApis,
+    config.detectAngularVersion,
+    config.minimumAngularVersion
+  );
 
-  const outputsProperties = bindingProperties.get('outputs');
-  const hasAnyOutput = !!outputsProperties?.length;
+  const inputProps = bindingProperties.get('inputs') || [];
+  const outputProps = bindingProperties.get('outputs') || [];
+
+  // Convert to signal format (all required by default for now)
+  const signalInputs: SignalInput[] = inputProps.map((name) => ({
+    name,
+    isRequired: true, // You can enhance this later with smart detection
+  }));
+
+  const signalOutputs: SignalOutput[] = outputProps.map((name) => ({ name }));
+
+  const hasAnyInput = signalInputs.length > 0;
+  const hasAnyOutput = signalOutputs.length > 0;
+
+  const imports = generateNgCoreImports(hasAnyInput, hasAnyOutput, useSignals);
+
+  let inputs = '';
   let outputs = '';
-  if (hasAnyOutput) {
-    outputs = stringifyOutputProps(outputsProperties);
+
+  if (useSignals) {
+    inputs = generateSignalInputs(signalInputs);
+    outputs = generateSignalOutputs(signalOutputs);
+  } else {
+    inputs = generateDecoratorInputs(signalInputs);
+    outputs = generateDecoratorOutputs(signalOutputs);
   }
 
   return `
-  import { ChangeDetectionStrategy, Component${inputs ? ', Input' : ''}${
-    outputs ? ', Output, EventEmitter ' : ''
-  }} from '@angular/core';
+  ${imports}
 
   @Component({
     standalone: true,
@@ -235,7 +264,7 @@ export const createComponentTs = ({
 
     ${outputs}
   }
-  `;
+  `.trim();
 };
 
 export const stringifyOutputProps = (outputsProperties: string[]) =>

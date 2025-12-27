@@ -28,6 +28,31 @@
         "title": "Create component from highlighted text"
       }
     ],
+    "configuration": {
+      "title": "Angular Component From Template",
+      "properties": {
+        "ngComponentFromTemplate.useSignalApis": {
+          "type": "boolean",
+          "default": true,
+          "description": "Generate components using Signal APIs (input/output) instead of decorators (@Input/@Output)"
+        },
+        "ngComponentFromTemplate.changeDetectionStrategy": {
+          "type": "string",
+          "default": "OnPush",
+          "description": "Change detection strategy for the component"
+        },
+        "ngComponentFromTemplate.detectAngularVersion": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically detect Angular version and use appropriate APIs"
+        },
+        "ngComponentFromTemplate.minimumAngularVersion": {
+          "type": "number",
+          "default": 17,
+          "description": "Minimum Angular version to use Signal APIs (14-19)"
+        }
+      }
+    },
     "menus": {
       "explorer/context": [
         {
