@@ -22,6 +22,7 @@ Now that only real Angular devs are here, let's deep dive into what this extensi
 
 - **Select HTML** in your template and scaffold a complete component instantly
 - **Auto-detect bindings**: `[inputs]`, `(outputs)`, and `[(models)]` are automatically detected
+- **Smart type inference**: Automatically infers types from parent component using TypeScript analysis
 - **Signal-first generation**: Components are generated using Angular's modern Signal APIs (`input()`, `output()`, `model()`) by default
 - **Smart imports**: Automatically adds new components to parent component imports (for standalone components)
 - **Barrel exports**: Adds component to nearest `index.ts` barrel file
@@ -33,7 +34,7 @@ Now that only real Angular devs are here, let's deep dive into what this extensi
 This extension generates components using Angular's modern **Signal APIs** by default (Angular 16+):
 
 ```typescript
-// ✨ Generated with Signal APIs
+// ✨ Generated with Signal APIs and Smart Type Inference
 import {
   ChangeDetectionStrategy,
   Component,
@@ -50,19 +51,19 @@ import {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class UserCardComponent {
-  // Inputs
-  userName = input.required<unknown>();
-  userAge = input.required<unknown>();
+  // Inputs (types inferred from parent component)
+  userName = input.required<string>();
+  userAge = input.required<number>();
 
-  // Outputs
-  userClick = output<unknown>();
+  // Outputs (types inferred from event handlers)
+  userClick = output<MouseEvent>();
 }
 ```
 
 **For older Angular versions** (14-15) or when disabled, the extension falls back to decorator-based APIs:
 
 ```typescript
-// 📦 Decorator-based (fallback)
+// 📦 Decorator-based (fallback) with Smart Type Inference
 import {
   ChangeDetectionStrategy,
   Component,
@@ -80,12 +81,12 @@ import {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class UserCardComponent {
-  // Inputs
-  @Input({ required: true }) userName!: unknown;
-  @Input({ required: true }) userAge!: unknown;
+  // Inputs (types inferred from parent component)
+  @Input({ required: true }) userName!: string;
+  @Input({ required: true }) userAge!: number;
 
-  // Outputs
-  @Output() userClick = new EventEmitter<unknown>();
+  // Outputs (types inferred from event handlers)
+  @Output() userClick = new EventEmitter<MouseEvent>();
 }
 ```
 
@@ -186,14 +187,70 @@ The extension **automatically detects** your Angular version and uses the approp
 
 ## Features Deep Dive
 
+### Smart Type Inference
+
+The extension uses **TypeScript AST analysis** (via ts-morph) to automatically infer types from your parent component:
+
+**Input Property Type Inference:**
+- Analyzes binding expressions like `[userName]="user.name"`
+- Traverses property chains to determine the exact type
+- Supports nested properties: `employee.company.address.city` → `string`
+- Handles nullable types: `selectedUser: User | null` → `User | null`
+- Supports union types: `status: 'active' | 'inactive'` → `'active' | 'inactive'`
+
+**Output Event Type Inference:**
+- Analyzes event handler method signatures
+- Infers parameter types from method definitions: `handleClick(event: MouseEvent)` → `MouseEvent`
+- Supports custom event types and complex parameters
+
+**Type Inference Confidence Levels:**
+- **High**: Type inferred from explicit type annotations or property chains
+- **Medium**: Type inferred from constructor parameters
+- **Low**: Fallback heuristics (e.g., properties containing "name" → `string`)
+
+**Examples:**
+
+```typescript
+// Parent component
+export class ParentComponent {
+  user: { name: string; age: number } = { name: 'John', age: 30 };
+  items: Product[] = [];
+  status: 'pending' | 'approved' | 'rejected' = 'pending';
+
+  handleClick(event: MouseEvent): void { }
+  handleSubmit(data: FormData): void { }
+}
+```
+
+Template selection:
+```html
+<div [userName]="user.name" [userAge]="user.age"
+     [products]="items" [status]="status"
+     (click)="handleClick($event)"
+     (submit)="handleSubmit($event)"></div>
+```
+
+Generated component with inferred types:
+```typescript
+export class ExtractedComponent {
+  userName = input.required<string>();      // ← Inferred from user.name
+  userAge = input.required<number>();       // ← Inferred from user.age
+  products = input.required<Product[]>();   // ← Inferred from items
+  status = input.required<'pending' | 'approved' | 'rejected'>(); // ← Union type
+
+  click = output<MouseEvent>();    // ← Inferred from handleClick parameter
+  submit = output<FormData>();     // ← Inferred from handleSubmit parameter
+}
+```
+
 ### Binding Detection
 
 The extension automatically detects:
 
-- **Property bindings**: `[userName]="user.name"` → `userName = input.required<unknown>()`
-- **Event bindings**: `(click)="handleClick()"` → `click = output<unknown>()`
-- **Two-way bindings**: `[(ngModel)]="value"` → `ngModel = model.required<unknown>()` (Angular 16+)
-- **Native events are filtered out**: `(click)`, `(focus)`, etc. are not treated as outputs
+- **Property bindings**: `[userName]="user.name"` → `userName = input.required<string>()`
+- **Event bindings**: `(click)="handleClick($event)"` → `click = output<MouseEvent>()`
+- **Two-way bindings**: `[(ngModel)]="value"` → `ngModel = model.required<string>()` (Angular 17+)
+- **Native events are filtered out**: `(click)`, `(focus)`, etc. are not treated as custom outputs
 
 ### Standalone Component Support
 
@@ -228,14 +285,16 @@ All components are generated with:
 
 ## Known Limitations
 
-- Type inference: All properties are typed as `unknown` (manual refinement needed)
-- Template dependencies: Directives/pipes used in template must be manually imported
-- NgModule components: Limited support (shows info message instead of auto-wiring)
-- Regex-based parsing: Complex multiline attributes may not be detected
+- **Type inference edge cases**: Complex expressions (ternary operators, method chains, pipe transforms) may fall back to `unknown`
+- **Template dependencies**: Directives/pipes used in template must be manually imported
+- **NgModule components**: Limited support (shows info message instead of auto-wiring)
+- **Regex-based parsing**: Complex multiline attributes may not be detected
+- **Type imports**: Custom types are inferred but imports must be manually added if needed
 
 ## Roadmap
 
-- [ ] Smart type inference from parent component
+- [ ] Advanced type inference for complex expressions (ternary, pipes, method chains)
+- [ ] Auto-import custom types from inferred signatures
 - [ ] Template dependency auto-detection (`*ngIf`, pipes, etc.)
 - [ ] Preview mode before generation
 - [ ] Support for CSS/Less/styled-components
@@ -247,11 +306,16 @@ All components are generated with:
 
 **New Features:**
 
-- Signal-based component generation (Angular 16+)
-- Two-way binding detection with `model()`
-- Automatic Angular version detection
-- Configuration system for customization
-- Improved documentation
+- 🎯 **Smart Type Inference**: Automatically infer types from parent component using TypeScript AST analysis
+  - Supports nested properties, union types, nullable types, and generics
+  - Analyzes event handler signatures for output types
+  - High-confidence inference with fallback strategies
+- 🎨 Signal-based component generation (Angular 16+)
+- 🔄 Two-way binding detection with `model()`
+- 🔍 Automatic Angular version detection
+- ⚙️ Configuration system for customization
+- 📚 Comprehensive test suite (44 passing tests)
+- 📖 Improved documentation
 
 ### 0.0.2
 
