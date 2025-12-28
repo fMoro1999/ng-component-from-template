@@ -203,6 +203,17 @@ The extension uses **TypeScript AST analysis** (via ts-morph) to automatically i
 - Infers parameter types from method definitions: `handleClick(event: MouseEvent)` → `MouseEvent`
 - Supports custom event types and complex parameters
 
+**Model Binding Type Inference (Angular 17+):**
+- Automatically infers types for two-way bindings: `[(value)]="selectedItem"`
+- Supports the same type inference features as inputs
+- Generates `model()` signals with correct types
+
+**Custom Type Import Extraction:**
+- Automatically detects custom types used in bindings
+- Extracts import statements from parent component
+- Adds necessary imports to generated component
+- Works with interfaces, classes, enums, and type aliases
+
 **Type Inference Confidence Levels:**
 - **High**: Type inferred from explicit type annotations or property chains
 - **Medium**: Type inferred from constructor parameters
@@ -212,13 +223,17 @@ The extension uses **TypeScript AST analysis** (via ts-morph) to automatically i
 
 ```typescript
 // Parent component
+import { Product } from '../models/product';
+import { UserProfile } from '../types/user';
+
 export class ParentComponent {
-  user: { name: string; age: number } = { name: 'John', age: 30 };
+  user: UserProfile = { name: 'John', age: 30, role: 'admin' };
   items: Product[] = [];
+  selectedItem: Product | null = null;
   status: 'pending' | 'approved' | 'rejected' = 'pending';
 
   handleClick(event: MouseEvent): void { }
-  handleSubmit(data: FormData): void { }
+  handleProductSelect(product: Product): void { }
 }
 ```
 
@@ -226,20 +241,43 @@ Template selection:
 ```html
 <div [userName]="user.name" [userAge]="user.age"
      [products]="items" [status]="status"
+     [(selectedItem)]="selectedItem"
      (click)="handleClick($event)"
-     (submit)="handleSubmit($event)"></div>
+     (productSelect)="handleProductSelect($event)"></div>
 ```
 
-Generated component with inferred types:
+Generated component with inferred types AND custom imports:
 ```typescript
+import {
+  ChangeDetectionStrategy,
+  Component,
+  input,
+  output,
+  model,
+} from '@angular/core';
+import { Product } from '../models/product';  // ← Auto-imported!
+
+@Component({
+  standalone: true,
+  imports: [],
+  selector: 'extracted-component',
+  templateUrl: './extracted-component.component.html',
+  styleUrls: ['./extracted-component.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+})
 export class ExtractedComponent {
+  // Inputs with inferred types
   userName = input.required<string>();      // ← Inferred from user.name
   userAge = input.required<number>();       // ← Inferred from user.age
-  products = input.required<Product[]>();   // ← Inferred from items
+  products = input.required<Product[]>();   // ← Inferred from items + import added
   status = input.required<'pending' | 'approved' | 'rejected'>(); // ← Union type
 
-  click = output<MouseEvent>();    // ← Inferred from handleClick parameter
-  submit = output<FormData>();     // ← Inferred from handleSubmit parameter
+  // Two-way bindings with inferred types
+  selectedItem = model.required<Product | null>();  // ← Inferred from selectedItem
+
+  // Outputs with inferred parameter types
+  click = output<MouseEvent>();         // ← Inferred from handleClick parameter
+  productSelect = output<Product>();    // ← Inferred from handleProductSelect parameter
 }
 ```
 
@@ -289,12 +327,13 @@ All components are generated with:
 - **Template dependencies**: Directives/pipes used in template must be manually imported
 - **NgModule components**: Limited support (shows info message instead of auto-wiring)
 - **Regex-based parsing**: Complex multiline attributes may not be detected
-- **Type imports**: Custom types are inferred but imports must be manually added if needed
+- **Multiple custom types**: Only types from the parent component's imports are extracted (not transitive dependencies)
 
 ## Roadmap
 
 - [ ] Advanced type inference for complex expressions (ternary, pipes, method chains)
-- [ ] Auto-import custom types from inferred signatures
+- [x] Auto-import custom types from inferred signatures ✅ **Completed in v0.1.0**
+- [x] Model binding type inference ✅ **Completed in v0.1.0**
 - [ ] Template dependency auto-detection (`*ngIf`, pipes, etc.)
 - [ ] Preview mode before generation
 - [ ] Support for CSS/Less/styled-components
@@ -309,12 +348,17 @@ All components are generated with:
 - 🎯 **Smart Type Inference**: Automatically infer types from parent component using TypeScript AST analysis
   - Supports nested properties, union types, nullable types, and generics
   - Analyzes event handler signatures for output types
+  - **Model binding type inference** for two-way bindings
   - High-confidence inference with fallback strategies
+- 📦 **Custom Type Import Extraction**: Automatically extracts and adds import statements for custom types
+  - Detects custom interfaces, classes, enums, and type aliases
+  - Preserves relative import paths from parent component
+  - Works seamlessly with inferred types
 - 🎨 Signal-based component generation (Angular 16+)
 - 🔄 Two-way binding detection with `model()`
 - 🔍 Automatic Angular version detection
 - ⚙️ Configuration system for customization
-- 📚 Comprehensive test suite (44 passing tests)
+- 📚 Comprehensive test suite (43 passing tests)
 - 📖 Improved documentation
 
 ### 0.0.2
