@@ -1,0 +1,1 @@
+- NEVER use dynamic imports resolution. Use static one instead using the import syntax
