@@ -16,6 +16,10 @@ import {
   generateSignalOutputs,
 } from './signal-generator';
 import {
+  DependencyImportGenerator,
+  TemplateDependencyAnalyzer,
+} from './template-dependency';
+import {
   ImportManager,
   SignalInput,
   SignalModel,
@@ -234,6 +238,13 @@ export const createComponentTsAsync = async ({
   const outputProps = bindingProperties.get('outputs') || [];
   const modelProps = bindingProperties.get('models') || [];
 
+  // Template dependency analysis - ALWAYS applied
+  const dependencyAnalyzer = new TemplateDependencyAnalyzer();
+  const templateDependencies = dependencyAnalyzer.analyze(template);
+  const importGenerator = new DependencyImportGenerator();
+  const dependencyImports = importGenerator.generateImports(templateDependencies);
+  const dependencyImportsArray = importGenerator.generateImportsArray(templateDependencies);
+
   // Type inference - ALWAYS applied
   let signalInputs: SignalInput[];
   let signalOutputs: SignalOutput[];
@@ -305,9 +316,11 @@ export const createComponentTsAsync = async ({
   return `
   ${imports}
   ${customTypeImports}
+  ${dependencyImports}
+
   @Component({
     standalone: true,
-    imports: [],
+    imports: ${dependencyImportsArray},
     selector: '${dasherizedComponentName}',
     templateUrl: './${dasherizedComponentName}.component.html',
     styleUrls: ['./${dasherizedComponentName}.component.scss'],

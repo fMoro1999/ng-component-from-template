@@ -23,6 +23,7 @@ Now that only real Angular devs are here, let's deep dive into what this extensi
 - **Select HTML** in your template and scaffold a complete component instantly
 - **Auto-detect bindings**: `[inputs]`, `(outputs)`, and `[(models)]` are automatically detected
 - **Smart type inference**: Automatically infers types from parent component using TypeScript analysis
+- **Template dependency detection**: Automatically detects and imports Angular directives, pipes, and components used in templates
 - **Signal-first generation**: Components are generated using Angular's modern Signal APIs (`input()`, `output()`, `model()`) by default
 - **Smart imports**: Automatically adds new components to parent component imports (for standalone components)
 - **Barrel exports**: Adds component to nearest `index.ts` barrel file
@@ -290,6 +291,51 @@ The extension automatically detects:
 - **Two-way bindings**: `[(ngModel)]="value"` → `ngModel = model.required<string>()` (Angular 17+)
 - **Native events are filtered out**: `(click)`, `(focus)`, etc. are not treated as custom outputs
 
+### Template Dependency Auto-Detection
+
+The extension analyzes your template and automatically imports required dependencies:
+
+**Structural Directives:**
+```html
+<div *ngIf="show">Content</div>
+<!-- Auto-imports: NgIf from @angular/common -->
+
+<li *ngFor="let item of items">{{ item }}</li>
+<!-- Auto-imports: NgFor from @angular/common -->
+```
+
+**Attribute Directives:**
+```html
+<div [ngClass]="classes" [ngStyle]="styles">Content</div>
+<!-- Auto-imports: NgClass, NgStyle from @angular/common -->
+```
+
+**Pipes:**
+```html
+<p>{{ data$ | async }}</p>
+<p>{{ now | date:'short' }}</p>
+<p>{{ text | uppercase }}</p>
+<!-- Auto-imports: AsyncPipe, DatePipe, UpperCasePipe from @angular/common -->
+```
+
+**Generated Component:**
+```typescript
+import { NgIf, NgFor, AsyncPipe, DatePipe } from '@angular/common';
+
+@Component({
+  standalone: true,
+  imports: [NgIf, NgFor, AsyncPipe, DatePipe],  // ← Auto-populated!
+  // ...
+})
+```
+
+**Supported Dependencies:**
+- ✅ Structural directives: `*ngIf`, `*ngFor`, `*ngSwitch`
+- ✅ Attribute directives: `[ngClass]`, `[ngStyle]`, `[(ngModel)]`
+- ✅ Built-in pipes: `async`, `date`, `uppercase`, `lowercase`, `currency`, `percent`, `json`, `slice`
+- ✅ Custom pipes are detected (requires manual import path resolution)
+- ✅ Custom components are detected (requires manual import path resolution)
+
 ### Standalone Component Support
 
 For standalone components, the extension:
@@ -324,7 +370,7 @@ All components are generated with:
 ## Known Limitations
 
 - **Type inference edge cases**: Complex expressions (ternary operators, method chains, pipe transforms) may fall back to `unknown`
-- **Template dependencies**: Directives/pipes used in template must be manually imported
+- **Custom component/pipe imports**: Custom components and pipes are detected but import paths must be manually added
 - **NgModule components**: Limited support (shows info message instead of auto-wiring)
 - **Regex-based parsing**: Complex multiline attributes may not be detected
 - **Multiple custom types**: Only types from the parent component's imports are extracted (not transitive dependencies)
@@ -334,7 +380,8 @@ All components are generated with:
 - [ ] Advanced type inference for complex expressions (ternary, pipes, method chains)
 - [x] Auto-import custom types from inferred signatures ✅ **Completed in v0.1.0**
 - [x] Model binding type inference ✅ **Completed in v0.1.0**
-- [ ] Template dependency auto-detection (`*ngIf`, pipes, etc.)
+- [x] Template dependency auto-detection (`*ngIf`, pipes, etc.) ✅ **Completed in v0.1.0**
+- [ ] Custom component/pipe import path resolution
 - [ ] Preview mode before generation
 - [ ] Support for CSS/Less/styled-components
 - [ ] NgModule integration improvements
@@ -354,11 +401,17 @@ All components are generated with:
   - Detects custom interfaces, classes, enums, and type aliases
   - Preserves relative import paths from parent component
   - Works seamlessly with inferred types
+- 🔧 **Template Dependency Auto-Detection**: Automatically detects and imports Angular directives and pipes
+  - Detects structural directives (`*ngIf`, `*ngFor`, `*ngSwitch`)
+  - Detects attribute directives (`[ngClass]`, `[ngStyle]`, `[(ngModel)]`)
+  - Detects built-in pipes (`async`, `date`, `uppercase`, etc.)
+  - Auto-populates component `imports` array
+  - Detects custom components and pipes (manual import path required)
 - 🎨 Signal-based component generation (Angular 16+)
 - 🔄 Two-way binding detection with `model()`
 - 🔍 Automatic Angular version detection
 - ⚙️ Configuration system for customization
-- 📚 Comprehensive test suite (43 passing tests)
+- 📚 Comprehensive test suite (86 passing tests)
 - 📖 Improved documentation
 
 ### 0.0.2
