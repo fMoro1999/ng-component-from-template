@@ -42,10 +42,12 @@ export const createComponentTsFromSelectedTextAsync = async ({
   componentPath,
   dasherizedComponentName,
   bindingProperties,
+  template,
 }: {
   componentPath: string;
   dasherizedComponentName: string;
   bindingProperties: Map<'inputs' | 'outputs' | 'models', string[]>;
+  template: string;
 }) => {
   const fullPath = path.join(
     componentPath,
@@ -55,6 +57,7 @@ export const createComponentTsFromSelectedTextAsync = async ({
   const content = await createComponentTsAsync({
     dasherizedComponentName,
     bindingProperties,
+    template,
   });
 
   const hasFileCreationSucceeded = await createFileAsync(fullPath, content);

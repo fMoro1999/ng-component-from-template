@@ -81,6 +81,7 @@ export function activate(context: vscode.ExtensionContext) {
         componentPath: componentFolderPath,
         dasherizedComponentName,
         bindingProperties,
+        template,
       });
       await createEmptyComponentScssAsync({
         componentPath: componentFolderPath,

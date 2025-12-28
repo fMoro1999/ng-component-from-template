@@ -8,9 +8,6 @@ import { generateNgCoreImports } from './import-generator';
 import { Component } from './models';
 import { ValidatorFnLike } from './models/utils.types';
 import {
-  SignalInput,
-  SignalModel,
-  SignalOutput,
   generateDecoratorInputs,
   generateDecoratorModels,
   generateDecoratorOutputs,
@@ -18,6 +15,13 @@ import {
   generateSignalModels,
   generateSignalOutputs,
 } from './signal-generator';
+import {
+  ImportManager,
+  SignalInput,
+  SignalModel,
+  SignalOutput,
+  TypeInferenceOrchestrator,
+} from './type-inference';
 import { requiredValidator } from './validators';
 
 export const askForNewComponentPathAsync = async () => {
@@ -211,9 +215,11 @@ export const createFileAsync = async (path: string, content: string) => {
 export const createComponentTsAsync = async ({
   dasherizedComponentName,
   bindingProperties,
+  template,
 }: {
   dasherizedComponentName: string;
   bindingProperties: Map<'inputs' | 'outputs' | 'models', string[]>;
+  template: string;
 }) => {
   const component = toComponentClassName(dasherizedComponentName);
 
@@ -226,19 +232,50 @@ export const createComponentTsAsync = async ({
 
   const inputProps = bindingProperties.get('inputs') || [];
   const outputProps = bindingProperties.get('outputs') || [];
-  const modelProps = bindingProperties.get('models') || []; // NEW
+  const modelProps = bindingProperties.get('models') || [];
 
-  const signalInputs: SignalInput[] = inputProps.map((name) => ({
-    name,
-    isRequired: true,
-  }));
+  // Type inference - ALWAYS applied
+  let signalInputs: SignalInput[];
+  let signalOutputs: SignalOutput[];
+  let signalModels: SignalModel[];
+  let customTypeImports: string = '';
 
-  const signalOutputs: SignalOutput[] = outputProps.map((name) => ({ name }));
+  try {
+    const orchestrator = new TypeInferenceOrchestrator();
 
-  const signalModels: SignalModel[] = modelProps.map((name) => ({
-    name,
-    isRequired: true,
-  }));
+    const parentFilePath = getHighlightedTextPathAsync();
+    const parentTsPath = parentFilePath.replace('.html', '.ts');
+
+    const enriched = await orchestrator.enrichPropertiesWithTypesFromFileAsync(
+      template,
+      inputProps,
+      outputProps,
+      modelProps,
+      parentTsPath
+    );
+
+    signalInputs = enriched.inputs;
+    signalOutputs = enriched.outputs;
+    signalModels = enriched.models;
+
+    // Generate import statements for custom types
+    if (enriched.imports && enriched.imports.length > 0) {
+      const importManager = new ImportManager();
+      customTypeImports = importManager.generateImportStatements(enriched.imports);
+    }
+  } catch (error) {
+    console.error('Type inference failed, falling back to unknown types:', error);
+    // Fallback to unknown types
+    signalInputs = inputProps.map((name) => ({
+      name,
+      isRequired: true,
+    }));
+    signalOutputs = outputProps.map((name) => ({ name }));
+    signalModels = modelProps.map((name) => ({
+      name,
+      isRequired: true,
+    }));
+  }
 
   const hasAnyInput = signalInputs.length > 0;
   const hasAnyOutput = signalOutputs.length > 0;
@@ -267,7 +304,7 @@ export const createComponentTsAsync = async ({
 
   return `
   ${imports}
-
+  ${customTypeImports}
   @Component({
     standalone: true,
     imports: [],

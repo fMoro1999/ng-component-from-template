@@ -675,6 +675,7 @@ suite('Type Inference Test Suite', () => {
         template,
         ['userName', 'userAge'],
         [],
+        [],
         sourceFile.getFilePath()
       );
 
@@ -696,6 +697,7 @@ suite('Type Inference Test Suite', () => {
         template,
         [],
         ['click', 'submit'],
+        [],
         sourceFile.getFilePath()
       );
 
@@ -722,6 +724,7 @@ suite('Type Inference Test Suite', () => {
         template,
         ['userName', 'isActive'],
         ['userClick'],
+        [],
         sourceFile.getFilePath()
       );
 
@@ -794,6 +797,7 @@ suite('Type Inference Test Suite', () => {
         template,
         ['textContent', 'class.in-stock', 'value'],
         ['change', 'click'],
+        [],
         sourceFile.getFilePath()
       );
 
