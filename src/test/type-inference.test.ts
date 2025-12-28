@@ -3,7 +3,7 @@ import {
   BindingInfo,
   BindingParser,
   TypeInferenceEngine,
-  TypeInferenceOrchestrator,
+  TypeInferrer,
 } from '../type-inference';
 import {
   PARENT_COMPONENT_COMPLEX,
@@ -657,11 +657,11 @@ suite('Type Inference Test Suite', () => {
   // ========================================
 
   suite('TypeInferenceOrchestrator - Integration', () => {
-    let orchestrator: TypeInferenceOrchestrator;
+    let orchestrator: TypeInferrer;
     let sourceFile: any;
 
     setup(() => {
-      orchestrator = new TypeInferenceOrchestrator();
+      orchestrator = new TypeInferrer();
       sourceFile = fileCreator.createSourceFile(
         'simple.component.ts',
         PARENT_COMPONENT_SIMPLE
@@ -792,7 +792,7 @@ suite('Type Inference Test Suite', () => {
         </div>
       `;
 
-      const orchestrator = new TypeInferenceOrchestrator();
+      const orchestrator = new TypeInferrer();
       const result = await orchestrator.enrichPropertiesWithTypesFromFileAsync(
         template,
         ['textContent', 'class.in-stock', 'value'],

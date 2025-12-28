@@ -24,7 +24,7 @@ import {
   SignalInput,
   SignalModel,
   SignalOutput,
-  TypeInferenceOrchestrator,
+  TypeInferrer,
 } from './type-inference';
 import { requiredValidator } from './validators';
 
@@ -242,8 +242,10 @@ export const createComponentTsAsync = async ({
   const dependencyAnalyzer = new TemplateDependencyAnalyzer();
   const templateDependencies = dependencyAnalyzer.analyze(template);
   const importGenerator = new DependencyImportGenerator();
-  const dependencyImports = importGenerator.generateImports(templateDependencies);
-  const dependencyImportsArray = importGenerator.generateImportsArray(templateDependencies);
+  const dependencyImports =
+    importGenerator.generateImports(templateDependencies);
+  const dependencyImportsArray =
+    importGenerator.generateImportsArray(templateDependencies);
 
   // Type inference - ALWAYS applied
   let signalInputs: SignalInput[];
@@ -252,7 +254,7 @@ export const createComponentTsAsync = async ({
   let customTypeImports: string = '';
 
   try {
-    const orchestrator = new TypeInferenceOrchestrator();
+    const orchestrator = new TypeInferrer();
 
     const parentFilePath = getHighlightedTextPathAsync();
     const parentTsPath = parentFilePath.replace('.html', '.ts');
@@ -272,10 +274,15 @@ export const createComponentTsAsync = async ({
     // Generate import statements for custom types
     if (enriched.imports && enriched.imports.length > 0) {
       const importManager = new ImportManager();
-      customTypeImports = importManager.generateImportStatements(enriched.imports);
+      customTypeImports = importManager.generateImportStatements(
+        enriched.imports
+      );
     }
   } catch (error) {
-    console.error('Type inference failed, falling back to unknown types:', error);
+    console.error(
+      'Type inference failed, falling back to unknown types:',
+      error
+    );
     // Fallback to unknown types
     signalInputs = inputProps.map((name) => ({
       name,

@@ -4,7 +4,12 @@ export * from './fallback-strategy';
 export * from './import-manager';
 export * from './inference-reporter';
 export * from './type-inference-engine';
-export * from './type-inference-orchestrator';
+export * from './type-inferrer';
 
 // Re-export commonly used types
-export type { SignalInput, SignalOutput, SignalModel, TypeInferenceResult } from './type-inference-orchestrator';
+export type {
+  SignalInput,
+  SignalModel,
+  SignalOutput,
+  TypeInferenceResult,
+} from './type-inferrer';

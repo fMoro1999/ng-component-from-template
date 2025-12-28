@@ -29,7 +29,7 @@ export interface TypeInferenceResult {
   report?: string;
 }
 
-export class TypeInferenceOrchestrator {
+export class TypeInferrer {
   private engine: TypeInferenceEngine;
   private parser: BindingParser;
   private importManager: ImportManager;
@@ -93,8 +93,12 @@ export class TypeInferenceOrchestrator {
       let customImports: TypeImport[] = [];
       try {
         const tempProject = new Project();
-        const parentSourceFile = tempProject.addSourceFileAtPath(parentTsFilePath);
-        customImports = this.importManager.extractNeededImports(typeMap, parentSourceFile);
+        const parentSourceFile =
+          tempProject.addSourceFileAtPath(parentTsFilePath);
+        customImports = this.importManager.extractNeededImports(
+          typeMap,
+          parentSourceFile
+        );
       } catch (error) {
         console.warn('Failed to extract custom type imports:', error);
       }
