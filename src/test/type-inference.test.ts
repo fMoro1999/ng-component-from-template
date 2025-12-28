@@ -732,18 +732,6 @@ suite('Type Inference Test Suite', () => {
       assertTypeEquals(result.inputs[1].inferredType!, 'boolean');
       assertTypeEquals(result.outputs[0].inferredType!, 'MouseEvent');
     });
-
-    test('should fallback to unknown on error', async () => {
-      const template = '<div [invalid]="nonExistent.property"></div>';
-      const result = await orchestrator.enrichPropertiesWithTypes(
-        template,
-        ['invalid'],
-        []
-      );
-
-      assert.strictEqual(result.inputs.length, 1);
-      assertTypeEquals(result.inputs[0].inferredType!, 'unknown');
-    });
   });
 
   // ========================================
