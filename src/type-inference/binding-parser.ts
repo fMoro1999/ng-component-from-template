@@ -1,3 +1,5 @@
+import { isBannedEvent } from '../constants';
+
 /**
  * Parse template bindings to extract expressions for type inference
  */
@@ -37,7 +39,7 @@ export class BindingParser {
 
       // Skip if already captured as model
       const alreadyModel = bindings.some(
-        b => b.bindingType === 'model' && b.propertyName === propertyName
+        (b) => b.bindingType === 'model' && b.propertyName === propertyName
       );
       if (!alreadyModel) {
         bindings.push({
@@ -57,9 +59,9 @@ export class BindingParser {
 
       // Skip if already captured as model
       const alreadyModel = bindings.some(
-        b => b.bindingType === 'model' && b.propertyName === propertyName
+        (b) => b.bindingType === 'model' && b.propertyName === propertyName
       );
-      if (!alreadyModel) {
+      if (!alreadyModel && !isBannedEvent(propertyName)) {
         bindings.push({
           propertyName,
           expression,
