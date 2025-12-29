@@ -20,10 +20,11 @@ Now that only real Angular devs are here, let's deep dive into what this extensi
 
 **Effortlessly extract components from your templates** with modern Angular best practices:
 
+- **Interactive Preview Mode**: Review and customize your component before generation with a beautiful preview UI
 - **Select HTML** in your template and scaffold a complete component instantly
 - **Auto-detect bindings**: `[inputs]`, `(outputs)`, and `[(models)]` are automatically detected
 - **Smart type inference**: Automatically infers types from parent component using TypeScript analysis
-- **Template dependency detection**: Automatically detects and imports Angular directives, pipes, and components used in templates
+- **Angular Language Service integration**: Delegates template dependency resolution to Angular Language Service via VS Code quick fixes for automatic, future-proof import detection
 - **Signal-first generation**: Components are generated using Angular's modern Signal APIs (`input()`, `output()`, `model()`) by default
 - **Smart imports**: Automatically adds new components to parent component imports (for standalone components)
 - **Barrel exports**: Adds component to nearest `index.ts` barrel file
@@ -102,7 +103,8 @@ export class UserCardComponent {
 2. **Right-click** and choose `Create component from highlighted text` (or use command palette)
 3. **Enter the destination path** for the new component (or use clipboard path if available)
 4. **Enter component name** in dash-case format (e.g., `user-profile-card`)
-5. **Done!** Your component is scaffolded and wired up automatically
+5. **Review the preview** (if enabled) - see below for details
+6. **Done!** Your component is scaffolded and wired up automatically
 
 ### Example Workflow
 
@@ -129,6 +131,57 @@ Your template is replaced with:
 <user-profile></user-profile>
 ```
 
+## Interactive Preview Mode
+
+Before generating your component, the extension shows an **interactive preview panel** where you can review and customize everything:
+
+### Preview Features
+
+**Component Name Editor:**
+- Edit the component name before generation
+- Real-time validation (must be kebab-case)
+- All file paths update automatically
+
+**Property Management:**
+- **Toggle properties on/off**: Uncheck inputs/outputs you don't need
+- **Edit types inline**: Click on any type to modify it (e.g., change `unknown` to `string`)
+- **Confidence indicators**: Each property shows HIGH/MEDIUM/LOW confidence badges based on type inference accuracy
+
+**Lifecycle Hooks:**
+- Add lifecycle hooks with checkboxes: `ngOnInit`, `ngOnDestroy`, `ngAfterViewInit`, etc.
+- Methods are automatically generated with proper signatures
+- Interfaces are automatically added to the implements clause
+
+**File Previews:**
+- **TypeScript tab**: Preview the generated `.component.ts` file with all your customizations
+- **HTML tab**: Preview the template file
+- **SCSS tab**: Preview the stylesheet file
+- Real-time updates as you make changes
+
+**Action Buttons:**
+- **Generate Component**: Apply all changes and create the component
+- **Cancel**: Abort without creating anything
+
+### Preview Mode Screenshot
+
+The preview panel provides a professional interface with:
+- Syntax-highlighted code previews
+- VSCode-native styling that adapts to your theme
+- Responsive layout for different screen sizes
+- Keyboard-friendly navigation
+
+### Disabling Preview Mode
+
+If you prefer the direct generation flow (no preview), disable it in settings:
+
+```json
+{
+  "ngComponentFromTemplate.enablePreviewMode": false
+}
+```
+
+With preview mode disabled, components are generated immediately after entering the name.
+
 ## Extension Settings
 
 This extension contributes the following settings:
@@ -151,11 +204,23 @@ This extension contributes the following settings:
 - **Default**: `17`
 - **Description**: Minimum Angular version required to use Signal APIs (14-19)
 
-### `ngComponentFromTemplate.changeDetectionStrategy
+### `ngComponentFromTemplate.changeDetectionStrategy`
 
 - **Type**: `string`
 - **Default**: `OnPush`
 - **Description**: The default CD synchronization strategy
+
+### `ngComponentFromTemplate.useAngularLanguageService`
+
+- **Type**: `boolean`
+- **Default**: `true`
+- **Description**: Delegate template dependency resolution to Angular Language Service. When enabled, ALS automatically resolves and imports required directives, pipes, and components via VS Code Quick Fixes. Falls back to built-in detection if ALS is unavailable.
+
+### `ngComponentFromTemplate.enablePreviewMode`
+
+- **Type**: `boolean`
+- **Default**: `true`
+- **Description**: Show interactive preview before generating component. When enabled, you can review and modify inputs/outputs, types, lifecycle hooks, and file contents before creation. Disable for direct generation without preview.
 
 ### Configuring Settings
 
@@ -172,7 +237,9 @@ This extension contributes the following settings:
   "ngComponentFromTemplate.useSignalApis": true,
   "ngComponentFromTemplate.detectAngularVersion": true,
   "ngComponentFromTemplate.changeDetectionStrategy": "OnPush",
-  "ngComponentFromTemplate.minimumAngularVersion": 17
+  "ngComponentFromTemplate.minimumAngularVersion": 17,
+  "ngComponentFromTemplate.useAngularLanguageService": true,
+  "ngComponentFromTemplate.enablePreviewMode": true
 }
 ```
 
@@ -291,50 +358,73 @@ The extension automatically detects:
 - **Two-way bindings**: `[(ngModel)]="value"` → `ngModel = model.required<string>()` (Angular 17+)
 - **Native events are filtered out**: `(click)`, `(focus)`, etc. are not treated as custom outputs
 
-### Template Dependency Auto-Detection
+### Template Dependency Auto-Detection via Angular Language Service
 
-The extension analyzes your template and automatically imports required dependencies:
+The extension uses a **hybrid approach** for import resolution: Angular Language Service (primary) with fallback detection (secondary).
 
-**Structural Directives:**
+#### Primary Mode: Angular Language Service (Recommended)
+
+The extension leverages **Angular Language Service** (ALS) to automatically resolve and import required dependencies using VS Code's Quick Fix API.
+
+**How it works:**
+
+1. Component is generated with minimal `imports: []`
+2. File is opened in VS Code
+3. ALS analyzes the template and detects missing imports
+4. Extension triggers VS Code Quick Fixes programmatically
+5. ALS quick fixes are applied automatically to add imports
+
+**What ALS resolves:**
+- ✅ Angular Common directives: `*ngIf`, `*ngFor`, `*ngSwitch`, `[ngClass]`, `[ngStyle]`, `[(ngModel)]`
+- ✅ Angular Common pipes: `async`, `date`, `uppercase`, `lowercase`, `currency`, `json`, etc.
+- ✅ Custom library components (PrimeNG, Angular Material, etc.)
+- ✅ Custom workspace pipes and directives
+- ✅ Future Angular features (automatically supported as Angular evolves)
+
+> ⚠️ **Fallback Note**: If ALS is unavailable, the extension uses best-effort heuristic detection limited to built-in Angular symbols. Custom components or pipes may require manual verification in fallback mode.
+
+**Example:**
+
+**Template:**
 ```html
-<div *ngIf="show">Content</div>
-<!-- Auto-imports: NgIf from @angular/common -->
-
-<li *ngFor="let item of items">{{ item }}</li>
-<!-- Auto-imports: NgFor from @angular/common -->
+<div *ngIf="show">
+  <p>{{ data$ | async }}</p>
+  <ul>
+    <li *ngFor="let item of items">{{ item | uppercase }}</li>
+  </ul>
+</div>
 ```
 
-**Attribute Directives:**
-```html
-<div [ngClass]="classes" [ngStyle]="styles">Content</div>
-<!-- Auto-imports: NgClass, NgStyle from @angular/common -->
-```
-
-**Pipes:**
-```html
-<p>{{ data$ | async }}</p>
-<p>{{ now | date:'short' }}</p>
-<p>{{ text | uppercase }}</p>
-<!-- Auto-imports: AsyncPipe, DatePipe, UpperCasePipe from @angular/common -->
-```
-
-**Generated Component:**
+**Generated Component (after ALS):**
 ```typescript
-import { NgIf, NgFor, AsyncPipe, DatePipe } from '@angular/common';
+import { NgIf, NgFor, AsyncPipe, UpperCasePipe } from '@angular/common';
 
 @Component({
   standalone: true,
-  imports: [NgIf, NgFor, AsyncPipe, DatePipe],  // ← Auto-populated!
+  imports: [NgIf, NgFor, AsyncPipe, UpperCasePipe],  // ← Auto-populated by ALS!
   // ...
 })
 ```
 
-**Supported Dependencies:**
-- ✅ Structural directives: `*ngIf`, `*ngFor`, `*ngSwitch`
-- ✅ Attribute directives: `[ngClass]`, `[ngStyle]`, `[(ngModel)]`
-- ✅ Built-in pipes: `async`, `date`, `uppercase`, `lowercase`, `currency`, `percent`, `json`, `slice`
-- ✅ Custom pipes are detected (requires manual import path resolution)
-- ✅ Custom components are detected (requires manual import path resolution)
+#### Fallback Mode: Heuristic Detection (Best-Effort)
+
+If Angular Language Service is not installed, unavailable, or fails to provide quick fixes, the extension falls back to **heuristic-based detection** for common Angular symbols.
+
+**Important caveats:**
+- ⚠️ **Best-effort only**: Accuracy is not guaranteed
+- ⚠️ **Limited scope**: Only detects hardcoded Angular Common symbols (`@angular/common`)
+- ⚠️ **No custom library support**: Cannot resolve PrimeNG, Material, etc.
+- ⚠️ **Manual verification required**: User should verify imports for custom components/pipes
+- ⚠️ **Regex-based**: May produce false positives/negatives on complex templates
+
+**When fallback is used:**
+The extension will show an info message:
+> "Fallback import detection applied (N imports added). Install 'Angular Language Service' extension for automatic, accurate import resolution. Please verify imports manually for custom components/pipes."
+
+**Recommendation:** Install the [Angular Language Service](https://marketplace.visualstudio.com/items?itemName=Angular.ng-template) extension for the best experience.
+
+**Why this matters:**
+By delegating to Angular Language Service, this extension avoids brittle heuristics, remains compatible with future Angular versions, and provides reliable, maintainable import resolution. Fallback detection is applied automatically if ALS is unavailable, but ALS integration is strongly recommended for production use.
 
 ### Standalone Component Support
 
@@ -369,22 +459,23 @@ All components are generated with:
 
 ## Known Limitations
 
-- **Type inference edge cases**: Complex expressions (ternary operators, method chains, pipe transforms) may fall back to `unknown`
-- **Custom component/pipe imports**: Custom components and pipes are detected but import paths must be manually added
+- **Type inference edge cases**: Complex expressions (ternary operators, method chains, pipe transforms) may fall back to `unknown` (but can be edited in preview mode)
 - **NgModule components**: Limited support (shows info message instead of auto-wiring)
 - **Regex-based parsing**: Complex multiline attributes may not be detected
 - **Multiple custom types**: Only types from the parent component's imports are extracted (not transitive dependencies)
+- **Template dependency resolution**: Requires Angular Language Service extension for full automation. Fallback heuristic detection is applied automatically if ALS is unavailable, but is limited to built-in Angular symbols and may require manual verification for custom components or pipes
 
 ## Roadmap
 
 - [ ] Advanced type inference for complex expressions (ternary, pipes, method chains)
 - [x] Auto-import custom types from inferred signatures ✅ **Completed in v0.1.0**
 - [x] Model binding type inference ✅ **Completed in v0.1.0**
-- [x] Template dependency auto-detection (`*ngIf`, pipes, etc.) ✅ **Completed in v0.1.0**
-- [ ] Custom component/pipe import path resolution
-- [ ] Preview mode before generation
+- [x] Angular Language Service integration for template dependencies ✅ **Completed in v0.1.0**
+- [x] Interactive Preview Mode ✅ **Completed in v0.1.0**
 - [ ] Support for CSS/Less/styled-components
 - [ ] NgModule integration improvements
+- [ ] Multi-pass ALS quick fix optimization
+- [ ] Service injection selector in preview mode
 
 ## Release Notes
 
@@ -392,6 +483,15 @@ All components are generated with:
 
 **New Features:**
 
+- 🎨 **Interactive Preview Mode**: Beautiful preview UI before component generation
+  - Review and modify inputs, outputs, and models
+  - Edit types inline with confidence indicators (HIGH/MEDIUM/LOW)
+  - Toggle properties on/off
+  - Add lifecycle hooks (ngOnInit, ngOnDestroy, etc.) with checkboxes
+  - Live file previews (TypeScript, HTML, SCSS) with syntax highlighting
+  - Edit component name with real-time validation
+  - Cancel or confirm generation
+  - Can be disabled for direct generation workflow
 - 🎯 **Smart Type Inference**: Automatically infer types from parent component using TypeScript AST analysis
   - Supports nested properties, union types, nullable types, and generics
   - Analyzes event handler signatures for output types
@@ -401,17 +501,18 @@ All components are generated with:
   - Detects custom interfaces, classes, enums, and type aliases
   - Preserves relative import paths from parent component
   - Works seamlessly with inferred types
-- 🔧 **Template Dependency Auto-Detection**: Automatically detects and imports Angular directives and pipes
-  - Detects structural directives (`*ngIf`, `*ngFor`, `*ngSwitch`)
-  - Detects attribute directives (`[ngClass]`, `[ngStyle]`, `[(ngModel)]`)
-  - Detects built-in pipes (`async`, `date`, `uppercase`, etc.)
-  - Auto-populates component `imports` array
-  - Detects custom components and pipes (manual import path required)
+- 🔧 **Angular Language Service Integration**: Delegates template dependency resolution to ALS via VS Code Quick Fixes
+  - Uses public VS Code APIs (`vscode.executeCodeActionProvider`)
+  - Automatically resolves Angular Common directives and pipes
+  - Supports custom library imports (PrimeNG, Material, etc.)
+  - Future-proof against Angular version changes
+  - Falls back to built-in detection if ALS unavailable
+  - Multi-pass quick fix application for chained dependencies
 - 🎨 Signal-based component generation (Angular 16+)
 - 🔄 Two-way binding detection with `model()`
 - 🔍 Automatic Angular version detection
 - ⚙️ Configuration system for customization
-- 📚 Comprehensive test suite (86 passing tests)
+- 📚 Comprehensive test suite (136 passing tests - 86 core + 50 preview mode)
 - 📖 Improved documentation
 
 ### 0.0.2
