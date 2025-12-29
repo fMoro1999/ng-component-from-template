@@ -381,7 +381,7 @@ export declare interface Directive {
  *
  * @publicApi
  */
-export declare enum ChangeDetectionStrategy {
+export enum ChangeDetectionStrategy {
   /**
    * Use the `CheckOnce` strategy, meaning that automatic change detection is deactivated
    * until reactivated by setting the strategy to `Default` (`CheckAlways`).
