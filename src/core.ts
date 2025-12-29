@@ -48,7 +48,7 @@ export const createComponentTsFromSelectedTextAsync = async ({
   dasherizedComponentName: string;
   bindingProperties: Map<'inputs' | 'outputs' | 'models', string[]>;
   template: string;
-}) => {
+}): Promise<{ success: boolean; filePath: string }> => {
   const fullPath = path.join(
     componentPath,
     `${dasherizedComponentName}.component.ts`
@@ -61,7 +61,10 @@ export const createComponentTsFromSelectedTextAsync = async ({
   });
 
   const hasFileCreationSucceeded = await createFileAsync(fullPath, content);
-  return hasFileCreationSucceeded;
+  return {
+    success: hasFileCreationSucceeded,
+    filePath: fullPath,
+  };
 };
 
 export const createEmptyComponentScssAsync = async ({

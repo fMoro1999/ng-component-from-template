@@ -238,14 +238,22 @@ export const createComponentTsAsync = async ({
   const outputProps = bindingProperties.get('outputs') || [];
   const modelProps = bindingProperties.get('models') || [];
 
-  // Template dependency analysis - ALWAYS applied
-  const dependencyAnalyzer = new TemplateDependencyAnalyzer();
-  const templateDependencies = dependencyAnalyzer.analyze(template);
-  const importGenerator = new DependencyImportGenerator();
-  const dependencyImports =
-    importGenerator.generateImports(templateDependencies);
-  const dependencyImportsArray =
-    importGenerator.generateImportsArray(templateDependencies);
+  // Template dependency analysis - conditionally applied based on ALS setting
+  let dependencyImports = '';
+  let dependencyImportsArray = '[]';
+
+  if (!config.useAngularLanguageService) {
+    // Fallback mode: use built-in template dependency detection
+    const dependencyAnalyzer = new TemplateDependencyAnalyzer();
+    const templateDependencies = dependencyAnalyzer.analyze(template);
+    const importGenerator = new DependencyImportGenerator();
+    dependencyImports =
+      importGenerator.generateImports(templateDependencies);
+    dependencyImportsArray =
+      importGenerator.generateImportsArray(templateDependencies);
+  }
+  // When ALS is enabled, we generate empty imports: []
+  // The ALS integration will populate them via quick fixes after generation
 
   // Type inference - ALWAYS applied
   let signalInputs: SignalInput[];

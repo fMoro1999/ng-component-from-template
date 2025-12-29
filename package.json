@@ -50,6 +50,16 @@
           "type": "number",
           "default": 17,
           "description": "Minimum Angular version to use Signal APIs (14-19)"
+        },
+        "ngComponentFromTemplate.useAngularLanguageService": {
+          "type": "boolean",
+          "default": true,
+          "description": "Delegate template dependency resolution to Angular Language Service. When enabled, ALS automatically resolves and imports required directives, pipes, and components. Falls back to built-in detection if ALS is unavailable."
+        },
+        "ngComponentFromTemplate.enablePreviewMode": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show interactive preview before generating component. When enabled, you can review and modify inputs/outputs, types, lifecycle hooks, and file contents before creation."
         }
       }
     },

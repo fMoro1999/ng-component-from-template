@@ -6,6 +6,7 @@ export interface ExtensionConfig {
   changeDetectionStrategy: ChangeDetectionStrategy;
   detectAngularVersion: boolean;
   minimumAngularVersion: number;
+  useAngularLanguageService: boolean;
 }
 
 export const getExtensionConfig = (): ExtensionConfig => {
@@ -19,5 +20,6 @@ export const getExtensionConfig = (): ExtensionConfig => {
     ),
     detectAngularVersion: config.get('detectAngularVersion', true),
     minimumAngularVersion: config.get('minimumAngularVersion', 17),
+    useAngularLanguageService: config.get('useAngularLanguageService', true),
   };
 };
