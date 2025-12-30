@@ -10,7 +10,7 @@ const path = require('path');
 /** @type WebpackConfig */
 const extensionConfig = {
   target: 'node', // VS Code extensions run in a Node.js-context 📖 -> https://webpack.js.org/configuration/node/
-	mode: 'none', // this leaves the source code as close as possible to the original (when packaging we set this to 'production')
+	mode: process.env.NODE_ENV === 'production' ? 'production' : 'none',
 
   entry: './src/extension.ts', // the entry point of this extension, 📖 -> https://webpack.js.org/configuration/entry-context/
   output: {
@@ -40,9 +40,12 @@ const extensionConfig = {
       }
     ]
   },
-  devtool: 'nosources-source-map',
+  devtool: process.env.NODE_ENV === 'production' ? false : 'nosources-source-map',
   infrastructureLogging: {
     level: "log", // enables logging required for problem matchers
   },
+  optimization: {
+    minimize: process.env.NODE_ENV === 'production'
+  }
 };
 module.exports = [ extensionConfig ];
