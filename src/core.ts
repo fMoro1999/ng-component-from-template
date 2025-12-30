@@ -6,20 +6,19 @@ import {
   PropertyAssignment,
   ts,
 } from 'ts-morph';
+import { getComponentDecoratorConfigAsync } from './ast-utilities';
 import { isBannedEvent } from './constants';
+import { createFileAsync, findFirstBarrelPath as findFirstBarrelPathAsync } from './file-operations';
 import { Component, Type } from './models';
+import { toComponentClassName } from './string-utilities';
+import { createComponentTsAsync } from './template-generators';
 import {
-  createComponentTsAsync,
-  createFileAsync,
-  findFirstBarrelPath as findFirstBarrelPathAsync,
-  getComponentDecoratorConfigAsync,
   getHighlightedTextPathAsync as getHighlightedTextPath,
   replaceHighlightedTextWithAsync,
   showErrorAsync,
   showInfoAsync,
   showWarningAsync,
-  toComponentClassName,
-} from './utils';
+} from './ui-interactions';
 
 export const createComponentTemplateFromSelectedTextAsync = async ({
   componentPath,

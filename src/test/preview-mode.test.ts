@@ -1,148 +1,243 @@
 import * as assert from 'assert';
-import { PreviewDataCollector, PropertyPreview, FilePreview } from '../preview/preview-data-collector';
-import { PreviewStateManager, PreviewState } from '../preview/preview-state-manager';
+import { Project } from 'ts-morph';
+import {
+  PreviewDataCollector,
+  PropertyPreview,
+  FilePreview,
+} from '../preview/preview-data-collector';
+import {
+  PreviewStateManager,
+  PreviewState,
+} from '../preview/preview-state-manager';
 import { DiffGenerator } from '../preview/diff-generator';
 import { LifecycleHook } from '../preview/lifecycle-hooks';
+import { setGlobalLogger, SilentLogger } from '../type-inference/logger';
 
 suite('Interactive Preview Mode Test Suite', () => {
+  let project: Project;
+
+  setup(() => {
+    // Create in-memory project for each test
+    project = new Project({
+      useInMemoryFileSystem: true,
+      compilerOptions: {
+        target: 99, // ScriptTarget.Latest
+      },
+    });
+
+    // Create fake parent component file
+    project.createSourceFile(
+      '/fake/parent.component.ts',
+      `
+import { Component } from '@angular/core';
+
+@Component({
+  selector: 'app-parent',
+  standalone: true,
+  imports: [],
+  template: ''
+})
+export class ParentComponent {
+  user = {
+    name: 'John',
+    age: 30
+  };
+
+  handleClick(event: MouseEvent) {}
+  onSelect(event: any) {}
+
+  item: any;
+  value: any;
+}
+`,
+      { overwrite: true }
+    );
+
+    // Create fake index.ts (barrel export)
+    project.createSourceFile(
+      '/fake/index.ts',
+      `export * from './parent.component';`,
+      { overwrite: true }
+    );
+  });
+
   suite('PreviewDataCollector', () => {
     test('should collect inputs from binding properties', async () => {
-      const collector = new PreviewDataCollector();
-      const bindingProperties = new Map<'inputs' | 'outputs' | 'models', string[]>([
+      const collector = new PreviewDataCollector(project);
+      const bindingProperties = new Map<
+        'inputs' | 'outputs' | 'models',
+        string[]
+      >([
         ['inputs', ['userName', 'userAge']],
         ['outputs', []],
-        ['models', []]
+        ['models', []],
       ]);
 
       const previewData = await collector.collect({
         componentName: 'user-card',
         template: '<div [userName]="user.name" [userAge]="user.age"></div>',
         bindingProperties,
-        parentFilePath: '/fake/parent.component.ts'
+        parentFilePath: '/fake/parent.component.ts',
       });
 
       assert.strictEqual(previewData.inputs.length, 2);
-      assert.ok(previewData.inputs.find(i => i.name === 'userName'));
-      assert.ok(previewData.inputs.find(i => i.name === 'userAge'));
+      assert.ok(previewData.inputs.find((i) => i.name === 'userName'));
+      assert.ok(previewData.inputs.find((i) => i.name === 'userAge'));
     });
 
     test('should collect outputs from binding properties', async () => {
-      const collector = new PreviewDataCollector();
-      const bindingProperties = new Map<'inputs' | 'outputs' | 'models', string[]>([
+      const collector = new PreviewDataCollector(project);
+      const bindingProperties = new Map<
+        'inputs' | 'outputs' | 'models',
+        string[]
+      >([
         ['inputs', []],
         ['outputs', ['userClick', 'itemSelected']],
-        ['models', []]
+        ['models', []],
       ]);
 
       const previewData = await collector.collect({
         componentName: 'user-card',
-        template: '<div (userClick)="handleClick($event)" (itemSelected)="onSelect($event)"></div>',
+        template:
+          '<div (userClick)="handleClick($event)" (itemSelected)="onSelect($event)"></div>',
         bindingProperties,
-        parentFilePath: '/fake/parent.component.ts'
+        parentFilePath: '/fake/parent.component.ts',
       });
 
       assert.strictEqual(previewData.outputs.length, 2);
-      assert.ok(previewData.outputs.find(o => o.name === 'userClick'));
-      assert.ok(previewData.outputs.find(o => o.name === 'itemSelected'));
+      assert.ok(previewData.outputs.find((o) => o.name === 'userClick'));
+      assert.ok(previewData.outputs.find((o) => o.name === 'itemSelected'));
     });
 
     test('should collect models from binding properties', async () => {
-      const collector = new PreviewDataCollector();
-      const bindingProperties = new Map<'inputs' | 'outputs' | 'models', string[]>([
+      const collector = new PreviewDataCollector(project);
+      const bindingProperties = new Map<
+        'inputs' | 'outputs' | 'models',
+        string[]
+      >([
         ['inputs', []],
         ['outputs', []],
-        ['models', ['selectedItem', 'currentValue']]
+        ['models', ['selectedItem', 'currentValue']],
       ]);
 
       const previewData = await collector.collect({
         componentName: 'user-card',
-        template: '<div [(selectedItem)]="item" [(currentValue)]="value"></div>',
+        template:
+          '<div [(selectedItem)]="item" [(currentValue)]="value"></div>',
         bindingProperties,
-        parentFilePath: '/fake/parent.component.ts'
+        parentFilePath: '/fake/parent.component.ts',
       });
 
       assert.strictEqual(previewData.models.length, 2);
-      assert.ok(previewData.models.find(m => m.name === 'selectedItem'));
-      assert.ok(previewData.models.find(m => m.name === 'currentValue'));
+      assert.ok(previewData.models.find((m) => m.name === 'selectedItem'));
+      assert.ok(previewData.models.find((m) => m.name === 'currentValue'));
     });
 
     test('should mark all properties as enabled by default', async () => {
-      const collector = new PreviewDataCollector();
-      const bindingProperties = new Map<'inputs' | 'outputs' | 'models', string[]>([
+      const collector = new PreviewDataCollector(project);
+      const bindingProperties = new Map<
+        'inputs' | 'outputs' | 'models',
+        string[]
+      >([
         ['inputs', ['userName']],
         ['outputs', ['userClick']],
-        ['models', ['selectedItem']]
+        ['models', ['selectedItem']],
       ]);
 
       const previewData = await collector.collect({
         componentName: 'user-card',
         template: '<div></div>',
         bindingProperties,
-        parentFilePath: '/fake/parent.component.ts'
+        parentFilePath: '/fake/parent.component.ts',
       });
 
-      assert.ok(previewData.inputs.every(i => i.enabled === true));
-      assert.ok(previewData.outputs.every(o => o.enabled === true));
-      assert.ok(previewData.models.every(m => m.enabled === true));
+      assert.ok(previewData.inputs.every((i) => i.enabled === true));
+      assert.ok(previewData.outputs.every((o) => o.enabled === true));
+      assert.ok(previewData.models.every((m) => m.enabled === true));
     });
 
     test('should include inferred types with confidence levels', async () => {
-      const collector = new PreviewDataCollector();
-      const bindingProperties = new Map<'inputs' | 'outputs' | 'models', string[]>([
+      const collector = new PreviewDataCollector(project);
+      const bindingProperties = new Map<
+        'inputs' | 'outputs' | 'models',
+        string[]
+      >([
         ['inputs', ['userName']],
         ['outputs', []],
-        ['models', []]
+        ['models', []],
       ]);
 
       const previewData = await collector.collect({
         componentName: 'user-card',
         template: '<div [userName]="user.name"></div>',
         bindingProperties,
-        parentFilePath: '/fake/parent.component.ts'
+        parentFilePath: '/fake/parent.component.ts',
       });
 
-      const userNameInput = previewData.inputs.find(i => i.name === 'userName');
+      const userNameInput = previewData.inputs.find(
+        (i) => i.name === 'userName'
+      );
       assert.ok(userNameInput);
-      assert.ok(['high', 'medium', 'low'].includes(userNameInput.inferenceConfidence));
+      assert.ok(
+        ['high', 'medium', 'low'].includes(userNameInput.inferenceConfidence)
+      );
     });
 
     test('should generate file previews for component files', async () => {
-      const collector = new PreviewDataCollector();
-      const bindingProperties = new Map<'inputs' | 'outputs' | 'models', string[]>([
+      const collector = new PreviewDataCollector(project);
+      const bindingProperties = new Map<
+        'inputs' | 'outputs' | 'models',
+        string[]
+      >([
         ['inputs', ['userName']],
         ['outputs', []],
-        ['models', []]
+        ['models', []],
       ]);
 
       const previewData = await collector.collect({
         componentName: 'user-card',
         template: '<div [userName]="user.name"></div>',
         bindingProperties,
-        parentFilePath: '/fake/parent.component.ts'
+        parentFilePath: '/fake/parent.component.ts',
       });
 
       assert.strictEqual(previewData.filesToCreate.length, 3);
-      assert.ok(previewData.filesToCreate.find(f => f.path.endsWith('.component.ts')));
-      assert.ok(previewData.filesToCreate.find(f => f.path.endsWith('.component.html')));
-      assert.ok(previewData.filesToCreate.find(f => f.path.endsWith('.component.scss')));
+      assert.ok(
+        previewData.filesToCreate.find((f) => f.path.endsWith('.component.ts'))
+      );
+      assert.ok(
+        previewData.filesToCreate.find((f) =>
+          f.path.endsWith('.component.html')
+        )
+      );
+      assert.ok(
+        previewData.filesToCreate.find((f) =>
+          f.path.endsWith('.component.scss')
+        )
+      );
     });
 
     test('should include TypeScript file preview with correct content', async () => {
-      const collector = new PreviewDataCollector();
-      const bindingProperties = new Map<'inputs' | 'outputs' | 'models', string[]>([
+      const collector = new PreviewDataCollector(project);
+      const bindingProperties = new Map<
+        'inputs' | 'outputs' | 'models',
+        string[]
+      >([
         ['inputs', ['userName']],
         ['outputs', ['userClick']],
-        ['models', []]
+        ['models', []],
       ]);
 
       const previewData = await collector.collect({
         componentName: 'user-card',
         template: '<div></div>',
         bindingProperties,
-        parentFilePath: '/fake/parent.component.ts'
+        parentFilePath: '/fake/parent.component.ts',
       });
 
-      const tsFile = previewData.filesToCreate.find(f => f.path.endsWith('.component.ts'));
+      const tsFile = previewData.filesToCreate.find((f) =>
+        f.path.endsWith('.component.ts')
+      );
       assert.ok(tsFile);
       assert.ok(tsFile.content.includes('userName'));
       assert.ok(tsFile.content.includes('userClick'));
@@ -150,11 +245,14 @@ suite('Interactive Preview Mode Test Suite', () => {
     });
 
     test('should include HTML template preview', async () => {
-      const collector = new PreviewDataCollector();
-      const bindingProperties = new Map<'inputs' | 'outputs' | 'models', string[]>([
+      const collector = new PreviewDataCollector(project);
+      const bindingProperties = new Map<
+        'inputs' | 'outputs' | 'models',
+        string[]
+      >([
         ['inputs', []],
         ['outputs', []],
-        ['models', []]
+        ['models', []],
       ]);
       const template = '<div class="user-card"><h1>Hello</h1></div>';
 
@@ -162,47 +260,57 @@ suite('Interactive Preview Mode Test Suite', () => {
         componentName: 'user-card',
         template,
         bindingProperties,
-        parentFilePath: '/fake/parent.component.ts'
+        parentFilePath: '/fake/parent.component.ts',
       });
 
-      const htmlFile = previewData.filesToCreate.find(f => f.path.endsWith('.component.html'));
+      const htmlFile = previewData.filesToCreate.find((f) =>
+        f.path.endsWith('.component.html')
+      );
       assert.ok(htmlFile);
       assert.strictEqual(htmlFile.content, template);
     });
 
     test('should include SCSS file preview', async () => {
-      const collector = new PreviewDataCollector();
-      const bindingProperties = new Map<'inputs' | 'outputs' | 'models', string[]>([
+      const collector = new PreviewDataCollector(project);
+      const bindingProperties = new Map<
+        'inputs' | 'outputs' | 'models',
+        string[]
+      >([
         ['inputs', []],
         ['outputs', []],
-        ['models', []]
+        ['models', []],
       ]);
 
       const previewData = await collector.collect({
         componentName: 'user-card',
         template: '<div></div>',
         bindingProperties,
-        parentFilePath: '/fake/parent.component.ts'
+        parentFilePath: '/fake/parent.component.ts',
       });
 
-      const scssFile = previewData.filesToCreate.find(f => f.path.endsWith('.component.scss'));
+      const scssFile = previewData.filesToCreate.find((f) =>
+        f.path.endsWith('.component.scss')
+      );
       assert.ok(scssFile);
       assert.strictEqual(scssFile.language, 'scss');
     });
 
     test('should detect files to modify for parent component', async () => {
-      const collector = new PreviewDataCollector();
-      const bindingProperties = new Map<'inputs' | 'outputs' | 'models', string[]>([
+      const collector = new PreviewDataCollector(project);
+      const bindingProperties = new Map<
+        'inputs' | 'outputs' | 'models',
+        string[]
+      >([
         ['inputs', []],
         ['outputs', []],
-        ['models', []]
+        ['models', []],
       ]);
 
       const previewData = await collector.collect({
         componentName: 'user-card',
         template: '<div></div>',
         bindingProperties,
-        parentFilePath: '/fake/parent.component.ts'
+        parentFilePath: '/fake/parent.component.ts',
       });
 
       // Should detect parent component needs import added
@@ -210,11 +318,14 @@ suite('Interactive Preview Mode Test Suite', () => {
     });
 
     test('should include template dependency imports in preview', async () => {
-      const collector = new PreviewDataCollector();
-      const bindingProperties = new Map<'inputs' | 'outputs' | 'models', string[]>([
+      const collector = new PreviewDataCollector(project);
+      const bindingProperties = new Map<
+        'inputs' | 'outputs' | 'models',
+        string[]
+      >([
         ['inputs', []],
         ['outputs', []],
-        ['models', []]
+        ['models', []],
       ]);
       const template = '<div *ngIf="show">{{ value | async }}</div>';
 
@@ -222,45 +333,51 @@ suite('Interactive Preview Mode Test Suite', () => {
         componentName: 'user-card',
         template,
         bindingProperties,
-        parentFilePath: '/fake/parent.component.ts'
+        parentFilePath: '/fake/parent.component.ts',
       });
 
       assert.ok(previewData.imports.length > 0);
-      assert.ok(previewData.imports.some(i => i.includes('NgIf')));
-      assert.ok(previewData.imports.some(i => i.includes('AsyncPipe')));
+      assert.ok(previewData.imports.some((i) => i.includes('NgIf')));
+      assert.ok(previewData.imports.some((i) => i.includes('AsyncPipe')));
     });
 
     test('should set component name from input', async () => {
-      const collector = new PreviewDataCollector();
-      const bindingProperties = new Map<'inputs' | 'outputs' | 'models', string[]>([
+      const collector = new PreviewDataCollector(project);
+      const bindingProperties = new Map<
+        'inputs' | 'outputs' | 'models',
+        string[]
+      >([
         ['inputs', []],
         ['outputs', []],
-        ['models', []]
+        ['models', []],
       ]);
 
       const previewData = await collector.collect({
         componentName: 'my-custom-widget',
         template: '<div></div>',
         bindingProperties,
-        parentFilePath: '/fake/parent.component.ts'
+        parentFilePath: '/fake/parent.component.ts',
       });
 
       assert.strictEqual(previewData.componentName, 'my-custom-widget');
     });
 
     test('should handle empty binding properties', async () => {
-      const collector = new PreviewDataCollector();
-      const bindingProperties = new Map<'inputs' | 'outputs' | 'models', string[]>([
+      const collector = new PreviewDataCollector(project);
+      const bindingProperties = new Map<
+        'inputs' | 'outputs' | 'models',
+        string[]
+      >([
         ['inputs', []],
         ['outputs', []],
-        ['models', []]
+        ['models', []],
       ]);
 
       const previewData = await collector.collect({
         componentName: 'empty-component',
         template: '<div>Static content</div>',
         bindingProperties,
-        parentFilePath: '/fake/parent.component.ts'
+        parentFilePath: '/fake/parent.component.ts',
       });
 
       assert.strictEqual(previewData.inputs.length, 0);
@@ -269,22 +386,27 @@ suite('Interactive Preview Mode Test Suite', () => {
     });
 
     test('should include barrel export modification in filesToModify', async () => {
-      const collector = new PreviewDataCollector();
-      const bindingProperties = new Map<'inputs' | 'outputs' | 'models', string[]>([
+      const collector = new PreviewDataCollector(project);
+      const bindingProperties = new Map<
+        'inputs' | 'outputs' | 'models',
+        string[]
+      >([
         ['inputs', []],
         ['outputs', []],
-        ['models', []]
+        ['models', []],
       ]);
 
       const previewData = await collector.collect({
         componentName: 'user-card',
         template: '<div></div>',
         bindingProperties,
-        parentFilePath: '/fake/parent.component.ts'
+        parentFilePath: '/fake/parent.component.ts',
       });
 
       // Should detect barrel export (index.ts) needs update
-      const barrelModification = previewData.filesToModify.find(f => f.path.endsWith('index.ts'));
+      const barrelModification = previewData.filesToModify.find((f) =>
+        f.path.endsWith('index.ts')
+      );
       assert.ok(barrelModification);
     });
   });
@@ -295,12 +417,20 @@ suite('Interactive Preview Mode Test Suite', () => {
       const initialData = {
         componentName: 'user-card',
         template: '<div></div>',
-        inputs: [{ name: 'userName', type: 'string', isRequired: true, inferenceConfidence: 'high' as const, enabled: true }],
+        inputs: [
+          {
+            name: 'userName',
+            type: 'string',
+            isRequired: true,
+            inferenceConfidence: 'high' as const,
+            enabled: true,
+          },
+        ],
         outputs: [],
         models: [],
         imports: [],
         filesToCreate: [],
-        filesToModify: []
+        filesToModify: [],
       };
 
       stateManager.initialize(initialData);
@@ -320,7 +450,7 @@ suite('Interactive Preview Mode Test Suite', () => {
         models: [],
         imports: [],
         filesToCreate: [],
-        filesToModify: []
+        filesToModify: [],
       };
 
       stateManager.initialize(initialData);
@@ -335,12 +465,20 @@ suite('Interactive Preview Mode Test Suite', () => {
       const initialData = {
         componentName: 'user-card',
         template: '<div></div>',
-        inputs: [{ name: 'userName', type: 'string', isRequired: true, inferenceConfidence: 'high' as const, enabled: true }],
+        inputs: [
+          {
+            name: 'userName',
+            type: 'string',
+            isRequired: true,
+            inferenceConfidence: 'high' as const,
+            enabled: true,
+          },
+        ],
         outputs: [],
         models: [],
         imports: [],
         filesToCreate: [],
-        filesToModify: []
+        filesToModify: [],
       };
 
       stateManager.initialize(initialData);
@@ -359,12 +497,20 @@ suite('Interactive Preview Mode Test Suite', () => {
       const initialData = {
         componentName: 'user-card',
         template: '<div></div>',
-        inputs: [{ name: 'userName', type: 'unknown', isRequired: true, inferenceConfidence: 'low' as const, enabled: true }],
+        inputs: [
+          {
+            name: 'userName',
+            type: 'unknown',
+            isRequired: true,
+            inferenceConfidence: 'low' as const,
+            enabled: true,
+          },
+        ],
         outputs: [],
         models: [],
         imports: [],
         filesToCreate: [],
-        filesToModify: []
+        filesToModify: [],
       };
 
       stateManager.initialize(initialData);
@@ -384,7 +530,7 @@ suite('Interactive Preview Mode Test Suite', () => {
         models: [],
         imports: [],
         filesToCreate: [],
-        filesToModify: []
+        filesToModify: [],
       };
 
       stateManager.initialize(initialData);
@@ -408,7 +554,7 @@ suite('Interactive Preview Mode Test Suite', () => {
         models: [],
         imports: [],
         filesToCreate: [],
-        filesToModify: []
+        filesToModify: [],
       };
 
       stateManager.initialize(initialData);
@@ -433,7 +579,7 @@ suite('Interactive Preview Mode Test Suite', () => {
         models: [],
         imports: [],
         filesToCreate: [],
-        filesToModify: []
+        filesToModify: [],
       };
 
       stateManager.initialize(initialData);
@@ -442,7 +588,10 @@ suite('Interactive Preview Mode Test Suite', () => {
 
       assert.strictEqual(state.services.length, 1);
       assert.strictEqual(state.services[0].name, 'UserService');
-      assert.strictEqual(state.services[0].importPath, './services/user.service');
+      assert.strictEqual(
+        state.services[0].importPath,
+        './services/user.service'
+      );
     });
 
     test('should remove service injection', () => {
@@ -455,7 +604,7 @@ suite('Interactive Preview Mode Test Suite', () => {
         models: [],
         imports: [],
         filesToCreate: [],
-        filesToModify: []
+        filesToModify: [],
       };
 
       stateManager.initialize(initialData);
@@ -471,14 +620,26 @@ suite('Interactive Preview Mode Test Suite', () => {
       const initialData = {
         componentName: 'user-card',
         template: '<div></div>',
-        inputs: [{ name: 'userName', type: 'string', isRequired: true, inferenceConfidence: 'high' as const, enabled: true }],
+        inputs: [
+          {
+            name: 'userName',
+            type: 'string',
+            isRequired: true,
+            inferenceConfidence: 'high' as const,
+            enabled: true,
+          },
+        ],
         outputs: [],
         models: [],
         imports: [],
         filesToCreate: [
-          { path: '/fake/user-card.component.ts', content: 'initial content', language: 'typescript' as const }
+          {
+            path: '/fake/user-card.component.ts',
+            content: 'initial content',
+            language: 'typescript' as const,
+          },
         ],
-        filesToModify: []
+        filesToModify: [],
       };
 
       stateManager.initialize(initialData);
@@ -500,11 +661,18 @@ suite('Interactive Preview Mode Test Suite', () => {
         componentName: 'user-card',
         template: '<div></div>',
         inputs: [],
-        outputs: [{ name: 'userClick', type: 'unknown', inferenceConfidence: 'low' as const, enabled: true }],
+        outputs: [
+          {
+            name: 'userClick',
+            type: 'unknown',
+            inferenceConfidence: 'low' as const,
+            enabled: true,
+          },
+        ],
         models: [],
         imports: [],
         filesToCreate: [],
-        filesToModify: []
+        filesToModify: [],
       };
 
       stateManager.initialize(initialData);
@@ -521,10 +689,18 @@ suite('Interactive Preview Mode Test Suite', () => {
         template: '<div></div>',
         inputs: [],
         outputs: [],
-        models: [{ name: 'selectedItem', type: 'unknown', isRequired: true, inferenceConfidence: 'low' as const, enabled: true }],
+        models: [
+          {
+            name: 'selectedItem',
+            type: 'unknown',
+            isRequired: true,
+            inferenceConfidence: 'low' as const,
+            enabled: true,
+          },
+        ],
         imports: [],
         filesToCreate: [],
-        filesToModify: []
+        filesToModify: [],
       };
 
       stateManager.initialize(initialData);
@@ -544,7 +720,7 @@ suite('Interactive Preview Mode Test Suite', () => {
         models: [],
         imports: [],
         filesToCreate: [],
-        filesToModify: []
+        filesToModify: [],
       };
 
       stateManager.initialize(initialData);
@@ -565,7 +741,7 @@ suite('Interactive Preview Mode Test Suite', () => {
       const filePreview = {
         path: '/fake/user-card.component.ts',
         content: 'export class UserCardComponent {}',
-        language: 'typescript' as const
+        language: 'typescript' as const,
       };
 
       const diff = generator.generateCreationDiff(filePreview);
@@ -579,7 +755,11 @@ suite('Interactive Preview Mode Test Suite', () => {
       const before = 'imports: []';
       const after = 'imports: [UserCardComponent]';
 
-      const diff = generator.generateModificationDiff('/fake/parent.component.ts', before, after);
+      const diff = generator.generateModificationDiff(
+        '/fake/parent.component.ts',
+        before,
+        after
+      );
 
       assert.ok(diff.includes('---'));
       assert.ok(diff.includes('+++'));
@@ -592,15 +772,15 @@ suite('Interactive Preview Mode Test Suite', () => {
       const filePreview = {
         path: '/fake/user-card.component.ts',
         content: 'line 1\nline 2\nline 3',
-        language: 'typescript' as const
+        language: 'typescript' as const,
       };
 
       const diff = generator.generateCreationDiff(filePreview);
       const lines = diff.split('\n');
 
       // All content lines should start with '+'
-      const contentLines = lines.filter(l => l.includes('line'));
-      assert.ok(contentLines.every(l => l.startsWith('+')));
+      const contentLines = lines.filter((l) => l.includes('line'));
+      assert.ok(contentLines.every((l) => l.startsWith('+')));
     });
 
     test('should highlight removed lines in modification diff', () => {
@@ -608,7 +788,11 @@ suite('Interactive Preview Mode Test Suite', () => {
       const before = 'old line 1\nold line 2';
       const after = 'new line 1\nnew line 2';
 
-      const diff = generator.generateModificationDiff('/fake/file.ts', before, after);
+      const diff = generator.generateModificationDiff(
+        '/fake/file.ts',
+        before,
+        after
+      );
 
       assert.ok(diff.includes('- old line 1') || diff.includes('-old line 1'));
       assert.ok(diff.includes('+ new line 1') || diff.includes('+new line 1'));
@@ -619,7 +803,7 @@ suite('Interactive Preview Mode Test Suite', () => {
       const filePreview = {
         path: '/workspace/src/app/user-card.component.ts',
         content: 'content',
-        language: 'typescript' as const
+        language: 'typescript' as const,
       };
 
       const diff = generator.generateCreationDiff(filePreview);
@@ -632,7 +816,7 @@ suite('Interactive Preview Mode Test Suite', () => {
       const filePreview = {
         path: '/fake/empty.component.scss',
         content: '',
-        language: 'scss' as const
+        language: 'scss' as const,
       };
 
       const diff = generator.generateCreationDiff(filePreview);
@@ -644,12 +828,19 @@ suite('Interactive Preview Mode Test Suite', () => {
     test('should generate diff for barrel export addition', () => {
       const generator = new DiffGenerator();
       const before = "export * from './user.component';\n";
-      const after = "export * from './user.component';\nexport * from './user-card.component';\n";
+      const after =
+        "export * from './user.component';\nexport * from './user-card.component';\n";
 
-      const diff = generator.generateModificationDiff('/fake/index.ts', before, after);
+      const diff = generator.generateModificationDiff(
+        '/fake/index.ts',
+        before,
+        after
+      );
 
-      assert.ok(diff.includes("+ export * from './user-card.component';") ||
-                diff.includes("+export * from './user-card.component';"));
+      assert.ok(
+        diff.includes("+ export * from './user-card.component';") ||
+          diff.includes("+export * from './user-card.component';")
+      );
     });
 
     test('should generate diff for parent component import addition', () => {
@@ -657,36 +848,66 @@ suite('Interactive Preview Mode Test Suite', () => {
       const before = 'imports: []';
       const after = 'imports: [UserCardComponent]';
 
-      const diff = generator.generateModificationDiff('/fake/parent.component.ts', before, after);
+      const diff = generator.generateModificationDiff(
+        '/fake/parent.component.ts',
+        before,
+        after
+      );
 
-      assert.ok(diff.includes('- imports: []') || diff.includes('-imports: []'));
-      assert.ok(diff.includes('+ imports: [UserCardComponent]') ||
-                diff.includes('+imports: [UserCardComponent]'));
+      assert.ok(
+        diff.includes('- imports: []') || diff.includes('-imports: []')
+      );
+      assert.ok(
+        diff.includes('+ imports: [UserCardComponent]') ||
+          diff.includes('+imports: [UserCardComponent]')
+      );
     });
   });
 
   suite('LifecycleHooks', () => {
     test('should provide list of available lifecycle hooks', () => {
       const hooks: LifecycleHook[] = [
-        { name: 'ngOnInit', interface: 'OnInit', description: 'Called once after component initialization' },
-        { name: 'ngOnDestroy', interface: 'OnDestroy', description: 'Called before component is destroyed' },
-        { name: 'ngOnChanges', interface: 'OnChanges', description: 'Called when input properties change' },
-        { name: 'ngAfterViewInit', interface: 'AfterViewInit', description: 'Called after view initialization' },
-        { name: 'ngAfterContentInit', interface: 'AfterContentInit', description: 'Called after content initialization' }
+        {
+          name: 'ngOnInit',
+          interface: 'OnInit',
+          description: 'Called once after component initialization',
+        },
+        {
+          name: 'ngOnDestroy',
+          interface: 'OnDestroy',
+          description: 'Called before component is destroyed',
+        },
+        {
+          name: 'ngOnChanges',
+          interface: 'OnChanges',
+          description: 'Called when input properties change',
+        },
+        {
+          name: 'ngAfterViewInit',
+          interface: 'AfterViewInit',
+          description: 'Called after view initialization',
+        },
+        {
+          name: 'ngAfterContentInit',
+          interface: 'AfterContentInit',
+          description: 'Called after content initialization',
+        },
       ];
 
       assert.strictEqual(hooks.length, 5);
-      assert.ok(hooks.every(h => h.name && h.interface && h.description));
+      assert.ok(hooks.every((h) => h.name && h.interface && h.description));
     });
 
     test('should generate import for lifecycle hook interfaces', () => {
       const hooks: LifecycleHook[] = [
         { name: 'ngOnInit', interface: 'OnInit', description: '' },
-        { name: 'ngOnDestroy', interface: 'OnDestroy', description: '' }
+        { name: 'ngOnDestroy', interface: 'OnDestroy', description: '' },
       ];
 
-      const imports = hooks.map(h => h.interface);
-      const importStatement = `import { Component, ${imports.join(', ')} } from '@angular/core';`;
+      const imports = hooks.map((h) => h.interface);
+      const importStatement = `import { Component, ${imports.join(
+        ', '
+      )} } from '@angular/core';`;
 
       assert.ok(importStatement.includes('OnInit'));
       assert.ok(importStatement.includes('OnDestroy'));
@@ -695,10 +916,10 @@ suite('Interactive Preview Mode Test Suite', () => {
     test('should generate implements clause for lifecycle hooks', () => {
       const hooks: LifecycleHook[] = [
         { name: 'ngOnInit', interface: 'OnInit', description: '' },
-        { name: 'ngOnDestroy', interface: 'OnDestroy', description: '' }
+        { name: 'ngOnDestroy', interface: 'OnDestroy', description: '' },
       ];
 
-      const interfaces = hooks.map(h => h.interface).join(', ');
+      const interfaces = hooks.map((h) => h.interface).join(', ');
       const clause = `export class MyComponent implements ${interfaces}`;
 
       assert.ok(clause.includes('implements OnInit, OnDestroy'));
@@ -708,7 +929,7 @@ suite('Interactive Preview Mode Test Suite', () => {
       const hook: LifecycleHook = {
         name: 'ngOnInit',
         interface: 'OnInit',
-        description: 'Called once after component initialization'
+        description: 'Called once after component initialization',
       };
 
       const method = `${hook.name}(): void {\n  // TODO: Implement ${hook.name}\n}`;
@@ -720,20 +941,24 @@ suite('Interactive Preview Mode Test Suite', () => {
 
   suite('Integration Tests', () => {
     test('should complete full preview flow with confirmation', async () => {
-      const collector = new PreviewDataCollector();
+      const collector = new PreviewDataCollector(project);
       const stateManager = new PreviewStateManager();
 
-      const bindingProperties = new Map<'inputs' | 'outputs' | 'models', string[]>([
+      const bindingProperties = new Map<
+        'inputs' | 'outputs' | 'models',
+        string[]
+      >([
         ['inputs', ['userName']],
         ['outputs', ['userClick']],
-        ['models', []]
+        ['models', []],
       ]);
 
       const previewData = await collector.collect({
         componentName: 'user-card',
-        template: '<div [userName]="user.name" (userClick)="handleClick($event)"></div>',
+        template:
+          '<div [userName]="user.name" (userClick)="handleClick($event)"></div>',
         bindingProperties,
-        parentFilePath: '/fake/parent.component.ts'
+        parentFilePath: '/fake/parent.component.ts',
       });
 
       stateManager.initialize(previewData);
@@ -748,18 +973,21 @@ suite('Interactive Preview Mode Test Suite', () => {
     });
 
     test('should handle preview cancellation', async () => {
-      const collector = new PreviewDataCollector();
-      const bindingProperties = new Map<'inputs' | 'outputs' | 'models', string[]>([
+      const collector = new PreviewDataCollector(project);
+      const bindingProperties = new Map<
+        'inputs' | 'outputs' | 'models',
+        string[]
+      >([
         ['inputs', ['userName']],
         ['outputs', []],
-        ['models', []]
+        ['models', []],
       ]);
 
       const previewData = await collector.collect({
         componentName: 'user-card',
         template: '<div></div>',
         bindingProperties,
-        parentFilePath: '/fake/parent.component.ts'
+        parentFilePath: '/fake/parent.component.ts',
       });
 
       // Simulating cancellation - no state changes should persist
@@ -768,48 +996,59 @@ suite('Interactive Preview Mode Test Suite', () => {
     });
 
     test('should update previews when properties are toggled off', async () => {
-      const collector = new PreviewDataCollector();
+      const collector = new PreviewDataCollector(project);
       const stateManager = new PreviewStateManager();
 
-      const bindingProperties = new Map<'inputs' | 'outputs' | 'models', string[]>([
+      const bindingProperties = new Map<
+        'inputs' | 'outputs' | 'models',
+        string[]
+      >([
         ['inputs', ['userName', 'userAge']],
         ['outputs', []],
-        ['models', []]
+        ['models', []],
       ]);
 
       const previewData = await collector.collect({
         componentName: 'user-card',
         template: '<div></div>',
         bindingProperties,
-        parentFilePath: '/fake/parent.component.ts'
+        parentFilePath: '/fake/parent.component.ts',
       });
 
       stateManager.initialize(previewData);
       stateManager.toggleProperty('input', 'userAge');
 
       const state = stateManager.getState();
-      const tsFile = state.filesToCreate.find(f => f.path.endsWith('.component.ts'));
+      const tsFile = state.filesToCreate.find((f) =>
+        f.path.endsWith('.component.ts')
+      );
 
       assert.ok(tsFile);
       assert.ok(tsFile.content.includes('userName'));
-      assert.ok(!tsFile.content.includes('userAge') || !state.inputs.find(i => i.name === 'userAge')?.enabled);
+      assert.ok(
+        !tsFile.content.includes('userAge') ||
+          !state.inputs.find((i) => i.name === 'userAge')?.enabled
+      );
     });
 
     test('should update component name in all file previews', async () => {
-      const collector = new PreviewDataCollector();
+      const collector = new PreviewDataCollector(project);
       const stateManager = new PreviewStateManager();
 
-      const bindingProperties = new Map<'inputs' | 'outputs' | 'models', string[]>([
+      const bindingProperties = new Map<
+        'inputs' | 'outputs' | 'models',
+        string[]
+      >([
         ['inputs', []],
         ['outputs', []],
-        ['models', []]
+        ['models', []],
       ]);
 
       const previewData = await collector.collect({
         componentName: 'user-card',
         template: '<div></div>',
         bindingProperties,
-        parentFilePath: '/fake/parent.component.ts'
+        parentFilePath: '/fake/parent.component.ts',
       });
 
       stateManager.initialize(previewData);
@@ -818,26 +1057,33 @@ suite('Interactive Preview Mode Test Suite', () => {
       const state = stateManager.getState();
 
       // All files should reflect new component name
-      assert.ok(state.filesToCreate.every(f =>
-        f.path.includes('user-profile-card') || !f.path.includes('user-card')
-      ));
+      assert.ok(
+        state.filesToCreate.every(
+          (f) =>
+            f.path.includes('user-profile-card') ||
+            !f.path.includes('user-card')
+        )
+      );
     });
 
     test('should include services in constructor when added', async () => {
-      const collector = new PreviewDataCollector();
+      const collector = new PreviewDataCollector(project);
       const stateManager = new PreviewStateManager();
 
-      const bindingProperties = new Map<'inputs' | 'outputs' | 'models', string[]>([
+      const bindingProperties = new Map<
+        'inputs' | 'outputs' | 'models',
+        string[]
+      >([
         ['inputs', []],
         ['outputs', []],
-        ['models', []]
+        ['models', []],
       ]);
 
       const previewData = await collector.collect({
         componentName: 'user-card',
         template: '<div></div>',
         bindingProperties,
-        parentFilePath: '/fake/parent.component.ts'
+        parentFilePath: '/fake/parent.component.ts',
       });
 
       stateManager.initialize(previewData);
@@ -845,7 +1091,9 @@ suite('Interactive Preview Mode Test Suite', () => {
       stateManager.addService('HttpClient', '@angular/common/http');
 
       const state = stateManager.getState();
-      const tsFile = state.filesToCreate.find(f => f.path.endsWith('.component.ts'));
+      const tsFile = state.filesToCreate.find((f) =>
+        f.path.endsWith('.component.ts')
+      );
 
       assert.ok(tsFile);
       assert.ok(tsFile.content.includes('UserService'));

@@ -3,6 +3,7 @@ import { BindingParser } from './binding-parser';
 import { ImportManager, TypeImport } from './import-manager';
 import { InferenceReporter } from './inference-reporter';
 import { TypeInferenceEngine } from './type-inference-engine';
+import { Logger, getGlobalLogger } from './logger';
 
 export interface SignalInput {
   name: string;
@@ -34,12 +35,16 @@ export class TypeInferrer {
   private parser: BindingParser;
   private importManager: ImportManager;
   private reporter: InferenceReporter;
+  private logger: Logger;
+  private project?: Project;
 
-  constructor() {
-    this.engine = new TypeInferenceEngine();
+  constructor(logger?: Logger, project?: Project) {
+    this.logger = logger || getGlobalLogger();
+    this.project = project;
+    this.engine = new TypeInferenceEngine(this.logger, project);
     this.parser = new BindingParser();
     this.importManager = new ImportManager();
-    this.reporter = new InferenceReporter();
+    this.reporter = new InferenceReporter(this.logger);
   }
 
   /**
@@ -92,20 +97,21 @@ export class TypeInferrer {
       // Get the parent source file for import analysis
       let customImports: TypeImport[] = [];
       try {
-        const tempProject = new Project();
+        // Use injected project if available, otherwise create temp project
+        const projectForImports = this.project || new Project();
         const parentSourceFile =
-          tempProject.addSourceFileAtPath(parentTsFilePath);
+          projectForImports.addSourceFileAtPath(parentTsFilePath);
         customImports = this.importManager.extractNeededImports(
           typeMap,
           parentSourceFile
         );
       } catch (error) {
-        console.warn('Failed to extract custom type imports:', error);
+        this.logger.warn('Failed to extract custom type imports:', error);
       }
 
       // Generate report for user feedback (console logging)
       const report = this.reporter.generateDetailedReport(inferredTypes);
-      console.log(report);
+      this.logger.log(report);
 
       // Report results to user
       await this.reporter.reportResults(inferredTypes);
@@ -118,7 +124,7 @@ export class TypeInferrer {
         report,
       };
     } catch (error) {
-      console.error('Type inference orchestration failed:', error);
+      this.logger.error('Type inference orchestration failed:', error);
 
       // Fallback: return properties without inferred types
       return {

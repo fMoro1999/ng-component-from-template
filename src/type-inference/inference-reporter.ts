@@ -1,6 +1,13 @@
 import { InferredType } from './type-inference-engine';
+import { Logger, getGlobalLogger } from './logger';
 
 export class InferenceReporter {
+  private logger: Logger;
+
+  constructor(logger?: Logger) {
+    this.logger = logger || getGlobalLogger();
+  }
+
   /**
    * Report type inference results to user
    */

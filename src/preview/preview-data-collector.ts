@@ -1,4 +1,5 @@
 import * as path from 'path';
+import { Project } from 'ts-morph';
 import { TemplateDependencyAnalyzer } from '../template-dependency/template-dependency-analyzer';
 import { DependencyImportGenerator } from '../template-dependency/import-generator';
 import { TypeInferrer } from '../type-inference/type-inferrer';
@@ -46,11 +47,13 @@ export class PreviewDataCollector {
   private templateDependencyAnalyzer: TemplateDependencyAnalyzer;
   private dependencyImportGenerator: DependencyImportGenerator;
   private typeInferrer: TypeInferrer;
+  private project?: Project;
 
-  constructor() {
+  constructor(project?: Project) {
+    this.project = project;
     this.templateDependencyAnalyzer = new TemplateDependencyAnalyzer();
     this.dependencyImportGenerator = new DependencyImportGenerator();
-    this.typeInferrer = new TypeInferrer();
+    this.typeInferrer = new TypeInferrer(undefined, project);
   }
 
   async collect(options: CollectOptions): Promise<PreviewData> {
@@ -120,7 +123,8 @@ export class PreviewDataCollector {
       inputs,
       outputs,
       models,
-      componentPath
+      componentPath,
+      parentFilePath
     );
 
     // Detect files to modify
@@ -148,7 +152,8 @@ export class PreviewDataCollector {
     inputs: PropertyPreview[],
     outputs: PropertyPreview[],
     models: PropertyPreview[],
-    componentPath: string
+    componentPath: string,
+    parentFilePath: string
   ): Promise<FilePreview[]> {
     const previews: FilePreview[] = [];
 
@@ -159,10 +164,41 @@ export class PreviewDataCollector {
       ['models', models.filter(m => m.enabled).map(m => m.name)]
     ]);
 
+    // Convert PropertyPreview types to SignalInput/Output/Model format
+    const signalInputs = inputs
+      .filter(i => i.enabled)
+      .map(i => ({
+        name: i.name,
+        isRequired: i.isRequired || true,
+        inferredType: i.type
+      }));
+
+    const signalOutputs = outputs
+      .filter(o => o.enabled)
+      .map(o => ({
+        name: o.name,
+        inferredType: o.type
+      }));
+
+    const signalModels = models
+      .filter(m => m.enabled)
+      .map(m => ({
+        name: m.name,
+        isRequired: m.isRequired || true,
+        inferredType: m.type
+      }));
+
     const tsContent = await createComponentTsAsync({
       dasherizedComponentName: componentName,
       bindingProperties,
-      template
+      template,
+      project: this.project,
+      parentFilePath,
+      // Pass pre-inferred types to avoid duplicate inference
+      inferredInputs: signalInputs,
+      inferredOutputs: signalOutputs,
+      inferredModels: signalModels,
+      customTypeImports: '' // TODO: Get from initial inference if needed
     });
 
     previews.push({

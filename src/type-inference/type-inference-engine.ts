@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { Project, SourceFile } from 'ts-morph';
+import { Logger, getGlobalLogger } from './logger';
 
 export interface InferredType {
   propertyName: string;
@@ -16,15 +17,24 @@ export interface TypeInferenceContext {
 
 export class TypeInferenceEngine {
   private project: Project | null = null;
+  private logger: Logger;
+  private externalProject?: Project;
 
-  constructor() {
-    // Project will be initialized when needed
+  constructor(logger?: Logger, project?: Project) {
+    this.logger = logger || getGlobalLogger();
+    this.externalProject = project;
   }
 
   /**
    * Initialize ts-morph project
    */
   private initializeProject(filePath: string): void {
+    // If external project provided (e.g., for testing), use it
+    if (this.externalProject) {
+      this.project = this.externalProject;
+      return;
+    }
+
     if (this.project) {
       return;
     }
@@ -49,23 +59,46 @@ export class TypeInferenceEngine {
     try {
       this.initializeProject(context.parentTsFilePath);
 
-      if (!fs.existsSync(context.parentTsFilePath)) {
-        console.warn(`File not found: ${context.parentTsFilePath}`);
-        // Return unknown for all bindings
-        for (const [propertyName] of context.templateBindings) {
-          results.set(propertyName, {
-            propertyName,
-            type: 'unknown',
-            isInferred: false,
-            confidence: 'low',
-          });
-        }
-        return results;
-      }
+      // For in-memory projects, check if file exists in project
+      // For real projects, check filesystem
+      let sourceFile: SourceFile | undefined;
 
-      const sourceFile = this.project!.addSourceFileAtPath(
-        context.parentTsFilePath
-      );
+      if (this.externalProject) {
+        // In-memory project: get existing source file
+        sourceFile = this.project!.getSourceFile(context.parentTsFilePath);
+        if (!sourceFile) {
+          this.logger.warn(`File not found: ${context.parentTsFilePath}`);
+          // Return unknown for all bindings
+          for (const [propertyName] of context.templateBindings) {
+            results.set(propertyName, {
+              propertyName,
+              type: 'unknown',
+              isInferred: false,
+              confidence: 'low',
+            });
+          }
+          return results;
+        }
+      } else {
+        // Real filesystem project: check if file exists first
+        if (!fs.existsSync(context.parentTsFilePath)) {
+          this.logger.warn(`File not found: ${context.parentTsFilePath}`);
+          // Return unknown for all bindings
+          for (const [propertyName] of context.templateBindings) {
+            results.set(propertyName, {
+              propertyName,
+              type: 'unknown',
+              isInferred: false,
+              confidence: 'low',
+            });
+          }
+          return results;
+        }
+
+        sourceFile = this.project!.addSourceFileAtPath(
+          context.parentTsFilePath
+        );
+      }
 
       for (const [
         propertyName,
@@ -79,7 +112,7 @@ export class TypeInferenceEngine {
         results.set(propertyName, inferredType);
       }
     } catch (error) {
-      console.error('Type inference error:', error);
+      this.logger.error('Type inference error:', error);
       // Return unknown for all bindings on error
       for (const [propertyName] of context.templateBindings) {
         results.set(propertyName, {
@@ -224,7 +257,7 @@ export class TypeInferenceEngine {
         confidence: 'high',
       };
     } catch (error) {
-      console.error(`Error inferring type for ${propertyName}:`, error);
+      this.logger.error(`Error inferring type for ${propertyName}:`, error);
       return defaultResult;
     }
   }
@@ -286,7 +319,7 @@ export class TypeInferenceEngine {
         confidence: 'high',
       };
     } catch (error) {
-      console.error(`Error inferring output type for ${propertyName}:`, error);
+      this.logger.error(`Error inferring output type for ${propertyName}:`, error);
       return defaultResult;
     }
   }

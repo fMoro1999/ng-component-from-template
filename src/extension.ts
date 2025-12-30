@@ -1,5 +1,6 @@
 // The module 'vscode' contains the VS Code extensibility API
 import fs from 'fs';
+import path from 'path';
 import * as vscode from 'vscode';
 import { getExtensionConfig } from './config';
 import {
@@ -11,26 +12,93 @@ import {
   detectComponentMetadata,
   replaceHighlightedTextAsync,
 } from './core';
+import { createFolderRecursivelyAsync } from './file-operations';
 import {
   applyALSQuickFixes,
   applyFallbackImports,
   isALSAvailable,
   likelyHasMissingImports,
 } from './language-service';
+import { getCurrentWorkspaceAbsolutePath, isPathLike } from './path-resolution';
 import { PreviewModeOrchestrator } from './preview';
 import {
   askForNewComponentNameAsync,
   askForNewComponentPathAsync,
-  createFolderRecursivelyAsync,
-  getCurrentWorkspaceAbsolutePath,
   getHighlightedText,
   getHighlightedTextPathAsync,
-  isPathLike,
   readTextFromClipboardAsync,
   showInfoAsync,
-} from './utils';
+} from './ui-interactions';
 
-import path from 'path';
+/**
+ * Parameters for generating component files
+ */
+interface GenerateComponentFilesParams {
+  componentPath: string;
+  componentName: string;
+  template: string;
+  bindingProperties: Map<'inputs' | 'outputs' | 'models', string[]>;
+}
+
+/**
+ * Generates all component files (HTML, TS, SCSS), updates parent component,
+ * and applies ALS quick fixes if enabled.
+ *
+ * This shared function eliminates duplication between preview and non-preview modes.
+ */
+async function generateComponentFilesAsync({
+  componentPath,
+  componentName,
+  template,
+  bindingProperties,
+}: GenerateComponentFilesParams): Promise<boolean> {
+  const componentFolderPath = path.join(componentPath, componentName);
+
+  // Create folder if it doesn't exist
+  const alreadyExists = fs.existsSync(componentFolderPath);
+  if (!alreadyExists) {
+    console.log('Path does not exist. Will create it for you! ;)');
+    const hasFolderCreationSucceeded = await createFolderRecursivelyAsync(
+      componentFolderPath
+    );
+    if (!hasFolderCreationSucceeded) {
+      return false;
+    }
+  }
+
+  // Generate component files
+  await createComponentTemplateFromSelectedTextAsync({
+    componentPath: componentFolderPath,
+    dasherizedComponentName: componentName,
+    template,
+  });
+
+  const { success: tsCreated, filePath: componentTsPath } =
+    await createComponentTsFromSelectedTextAsync({
+      componentPath: componentFolderPath,
+      dasherizedComponentName: componentName,
+      bindingProperties,
+      template,
+    });
+
+  await createEmptyComponentScssAsync({
+    componentPath: componentFolderPath,
+    dasherizedComponentName: componentName,
+  });
+
+  // Update parent component
+  await replaceHighlightedTextAsync(componentName);
+  await addToDeclaringModuleExportsAsync(componentName, componentFolderPath);
+  await addToClientImportsIfStandaloneAsync(componentName);
+
+  // Apply ALS quick fixes if enabled
+  if (tsCreated) {
+    await applyALSQuickFixesIfEnabled(componentTsPath, template);
+  }
+
+  await showInfoAsync('Enjoy!');
+  return true;
+}
 
 export function activate(context: vscode.ExtensionContext) {
   const createComponentCommand = vscode.commands.registerCommand(
@@ -101,98 +169,20 @@ export function activate(context: vscode.ExtensionContext) {
           ['models', finalState.models.filter(m => m.enabled).map(m => m.name)]
         ]);
 
-        const componentFolderPath = path.join(
+        await generateComponentFilesAsync({
           componentPath,
-          finalComponentName
-        );
-        const alreadyExists = fs.existsSync(componentFolderPath);
-        if (!alreadyExists) {
-          console.log('Path does not exist. Will create it for you! ;)');
-          const hasFolderCreationSucceeded = await createFolderRecursivelyAsync(
-            componentFolderPath
-          );
-          if (!hasFolderCreationSucceeded) {
-            return false;
-          }
-        }
-
-        await createComponentTemplateFromSelectedTextAsync({
-          componentPath: componentFolderPath,
-          dasherizedComponentName: finalComponentName,
+          componentName: finalComponentName,
           template,
+          bindingProperties: updatedBindingProperties,
         });
-        const { success: tsCreated, filePath: componentTsPath } =
-          await createComponentTsFromSelectedTextAsync({
-            componentPath: componentFolderPath,
-            dasherizedComponentName: finalComponentName,
-            bindingProperties: updatedBindingProperties,
-            template,
-          });
-        await createEmptyComponentScssAsync({
-          componentPath: componentFolderPath,
-          dasherizedComponentName: finalComponentName,
-        });
-
-        await replaceHighlightedTextAsync(finalComponentName);
-        await addToDeclaringModuleExportsAsync(
-          finalComponentName,
-          componentFolderPath
-        );
-        await addToClientImportsIfStandaloneAsync(finalComponentName);
-
-        // Apply ALS quick fixes if enabled
-        if (tsCreated) {
-          await applyALSQuickFixesIfEnabled(componentTsPath, template);
-        }
-
-        await showInfoAsync('Enjoy! ❤️‍🔥');
       } else {
         // Original flow without preview
-        const componentFolderPath = path.join(
+        await generateComponentFilesAsync({
           componentPath,
-          dasherizedComponentName
-        );
-        const alreadyExists = fs.existsSync(componentFolderPath);
-        if (!alreadyExists) {
-          console.log('Path does not exist. Will create it for you! ;)');
-          const hasFolderCreationSucceeded = await createFolderRecursivelyAsync(
-            componentFolderPath
-          );
-          if (!hasFolderCreationSucceeded) {
-            return false;
-          }
-        }
-
-        await createComponentTemplateFromSelectedTextAsync({
-          componentPath: componentFolderPath,
-          dasherizedComponentName,
+          componentName: dasherizedComponentName,
           template,
+          bindingProperties,
         });
-        const { success: tsCreated, filePath: componentTsPath } =
-          await createComponentTsFromSelectedTextAsync({
-            componentPath: componentFolderPath,
-            dasherizedComponentName,
-            bindingProperties,
-            template,
-          });
-        await createEmptyComponentScssAsync({
-          componentPath: componentFolderPath,
-          dasherizedComponentName,
-        });
-
-        await replaceHighlightedTextAsync(dasherizedComponentName);
-        await addToDeclaringModuleExportsAsync(
-          dasherizedComponentName,
-          componentFolderPath
-        );
-        await addToClientImportsIfStandaloneAsync(dasherizedComponentName);
-
-        // Apply ALS quick fixes if enabled
-        if (tsCreated) {
-          await applyALSQuickFixesIfEnabled(componentTsPath, template);
-        }
-
-        await showInfoAsync('Enjoy! ❤️‍🔥');
       }
     }
   );
@@ -236,21 +226,21 @@ async function applyALSQuickFixesIfEnabled(
     });
 
     if (alsResult.success && alsResult.importsAdded > 0) {
-      console.log(`✅ ALS added ${alsResult.importsAdded} imports successfully`);
+      console.log(`ALS added ${alsResult.importsAdded} imports successfully`);
       return; // ALS succeeded, we're done
     }
 
     if (alsResult.success && alsResult.importsAdded === 0) {
-      console.log('⚠️ ALS returned no quick fixes');
+      console.log('ALS returned no quick fixes');
       // Continue to fallback check
     }
 
     if (!alsResult.success) {
-      console.warn(`❌ ALS failed: ${alsResult.error}`);
+      console.warn(`ALS failed: ${alsResult.error}`);
       // Continue to fallback
     }
   } else {
-    console.log('⚠️ Angular Language Service not available');
+    console.log('Angular Language Service not available');
   }
 
   // Step 2: Check if imports are likely missing
@@ -258,12 +248,12 @@ async function applyALSQuickFixesIfEnabled(
   const hasMissingImports = likelyHasMissingImports(document, template);
 
   if (!hasMissingImports) {
-    console.log('✅ No missing imports detected');
+    console.log('No missing imports detected');
     return;
   }
 
   // Step 3: Apply fallback heuristic (best-effort)
-  console.log('🔄 Applying fallback import detection...');
+  console.log('Applying fallback import detection...');
 
   const fallbackResult = await applyFallbackImports(componentUri, template);
 
@@ -275,9 +265,9 @@ async function applyALSQuickFixesIfEnabled(
         `Please verify imports manually for custom components/pipes.`
     );
     console.log(
-      `✅ Fallback added ${fallbackResult.importsAdded} imports (best-effort)`
+      `Fallback added ${fallbackResult.importsAdded} imports (best-effort)`
     );
   } else if (fallbackResult.warning) {
-    console.warn(`⚠️ Fallback warning: ${fallbackResult.warning}`);
+    console.warn(`Fallback warning: ${fallbackResult.warning}`);
   }
 }

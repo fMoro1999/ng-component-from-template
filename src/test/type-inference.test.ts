@@ -12,6 +12,7 @@ import {
   PARENT_COMPONENT_SIMPLE,
 } from './fixtures/test-components';
 import { TestFileCreator, assertTypeEquals } from './helpers/test-utils';
+import { setGlobalLogger, SilentLogger } from '../type-inference/logger';
 
 suite('Type Inference Test Suite', () => {
   let fileCreator: TestFileCreator;

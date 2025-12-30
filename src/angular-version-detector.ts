@@ -1,10 +1,13 @@
 import fs from 'fs';
 import path from 'path';
-import { getCurrentWorkspaceAbsolutePath } from './utils';
+import { getCurrentWorkspaceAbsolutePath } from './path-resolution';
 
 export const detectAngularVersionAsync = async (): Promise<number | null> => {
   try {
     const workspacePath = getCurrentWorkspaceAbsolutePath();
+    if (!workspacePath) {
+      return null; // No workspace available (e.g., during tests)
+    }
     const packageJsonPath = path.join(workspacePath, 'package.json');
 
     if (!fs.existsSync(packageJsonPath)) {
@@ -27,7 +30,8 @@ export const detectAngularVersionAsync = async (): Promise<number | null> => {
     const versionMatch = angularCore.match(/(\d+)\./);
     return versionMatch ? parseInt(versionMatch[1], 10) : null;
   } catch (error) {
-    console.error('Error detecting Angular version:', error);
+    // Silently fail and return null - this is expected in test environments
+    // or when VSCode workspace is not available
     return null;
   }
 };
