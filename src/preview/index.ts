@@ -10,6 +10,26 @@ export { PreviewStateManager, PreviewState, ServiceInjection } from './preview-s
 // Webview provider
 export { PreviewWebviewProvider } from './preview-webview-provider';
 
+// Webview message types
+export {
+  WebviewToExtensionMessage,
+  ExtensionToWebviewMessage,
+  ConfirmMessage,
+  CancelMessage,
+  UpdateComponentNameMessage,
+  TogglePropertyMessage,
+  UpdatePropertyTypeMessage,
+  ToggleLifecycleHookMessage,
+  AddServiceMessage,
+  RemoveServiceMessage,
+  UpdateStateMessage,
+  ValidationErrorMessage,
+  isWebviewToExtensionMessage,
+} from './webview-messages';
+
+// Webview builders
+export { WebviewHtmlBuilder, WebviewStyleBuilder, WebviewScriptBuilder, HtmlEscaper } from './webview-builders';
+
 // Diff generation
 export { DiffGenerator } from './diff-generator';
 

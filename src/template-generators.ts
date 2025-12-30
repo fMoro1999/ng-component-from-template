@@ -171,6 +171,9 @@ export const createComponentTsAsync = async ({
     models = generateDecoratorModels(signalModels);
   }
 
+  // Use configured change detection strategy
+  const changeDetection = config.changeDetectionStrategy;
+
   return `
   ${imports}
   ${customTypeImports}
@@ -182,7 +185,7 @@ export const createComponentTsAsync = async ({
     selector: '${dasherizedComponentName}',
     templateUrl: './${dasherizedComponentName}.component.html',
     styleUrls: ['./${dasherizedComponentName}.component.scss'],
-    changeDetection: ChangeDetectionStrategy.OnPush,
+    changeDetection: ChangeDetectionStrategy.${changeDetection},
   })
   export class ${component} {
     ${inputs}

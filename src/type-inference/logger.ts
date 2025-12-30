@@ -4,8 +4,8 @@
  */
 export interface Logger {
   log(message: string): void;
-  warn(message: string, error?: any): void;
-  error(message: string, error?: any): void;
+  warn(message: string, error?: unknown): void;
+  error(message: string, error?: unknown): void;
 }
 
 /**
@@ -16,7 +16,7 @@ export class ConsoleLogger implements Logger {
     console.log(message);
   }
 
-  warn(message: string, error?: any): void {
+  warn(message: string, error?: unknown): void {
     if (error) {
       console.warn(message, error);
     } else {
@@ -24,7 +24,7 @@ export class ConsoleLogger implements Logger {
     }
   }
 
-  error(message: string, error?: any): void {
+  error(message: string, error?: unknown): void {
     if (error) {
       console.error(message, error);
     } else {
@@ -41,11 +41,11 @@ export class SilentLogger implements Logger {
     // Silent
   }
 
-  warn(_message: string, _error?: any): void {
+  warn(_message: string, _error?: unknown): void {
     // Silent
   }
 
-  error(_message: string, _error?: any): void {
+  error(_message: string, _error?: unknown): void {
     // Silent
   }
 }

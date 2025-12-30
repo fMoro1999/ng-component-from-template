@@ -1,13 +1,6 @@
-export interface SignalInput {
-  name: string;
-  isRequired: boolean;
-  inferredType?: string;
-}
+import type { SignalInput, SignalModel, SignalOutput } from './type-inference/type-inferrer';
 
-export interface SignalOutput {
-  name: string;
-  inferredType?: string;
-}
+export type { SignalInput, SignalModel, SignalOutput };
 
 export const generateSignalInputs = (inputs: SignalInput[]): string => {
   if (!inputs.length) {
@@ -64,19 +57,15 @@ export const generateDecoratorOutputs = (outputs: SignalOutput[]): string => {
   return `// Outputs\n\t\t${lines.join('\n\t\t')}`;
 };
 
-export interface SignalModel {
-  name: string;
-  isRequired: boolean;
-}
-
 export const generateSignalModels = (models: SignalModel[]): string => {
   if (!models.length) {
     return '';
   }
 
-  const lines = models.map(({ name, isRequired }) => {
+  const lines = models.map(({ name, isRequired, inferredType }) => {
     const fn = isRequired ? 'model.required' : 'model';
-    return `${name} = ${fn}<unknown>();`;
+    const type = inferredType || 'unknown';
+    return `${name} = ${fn}<${type}>();`;
   });
 
   return `// Two-way bindings\n\t\t${lines.join('\n\t\t')}`;
@@ -87,12 +76,13 @@ export const generateDecoratorModels = (models: SignalModel[]): string => {
     return '';
   }
 
-  const lines = models.flatMap(({ name, isRequired }) => {
+  const lines = models.flatMap(({ name, isRequired, inferredType }) => {
     const inputDecorator = isRequired ? '@Input({required: true})' : '@Input()';
     const modifier = isRequired ? '!' : '';
+    const type = inferredType || 'unknown';
     return [
-      `${inputDecorator} ${name}${modifier}: unknown;`,
-      `@Output() ${name}Change = new EventEmitter<unknown>();`,
+      `${inputDecorator} ${name}${modifier}: ${type};`,
+      `@Output() ${name}Change = new EventEmitter<${type}>();`,
     ];
   });
 

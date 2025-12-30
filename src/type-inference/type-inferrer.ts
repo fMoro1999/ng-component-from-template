@@ -4,6 +4,7 @@ import { ImportManager, TypeImport } from './import-manager';
 import { InferenceReporter } from './inference-reporter';
 import { TypeInferenceEngine } from './type-inference-engine';
 import { Logger, getGlobalLogger } from './logger';
+import { getProjectCache, ProjectCache } from './project-cache';
 
 export interface SignalInput {
   name: string;
@@ -36,11 +37,13 @@ export class TypeInferrer {
   private importManager: ImportManager;
   private reporter: InferenceReporter;
   private logger: Logger;
-  private project?: Project;
+  private externalProject?: Project;
+  private projectCache: ProjectCache;
 
   constructor(logger?: Logger, project?: Project) {
     this.logger = logger || getGlobalLogger();
-    this.project = project;
+    this.externalProject = project;
+    this.projectCache = getProjectCache();
     this.engine = new TypeInferenceEngine(this.logger, project);
     this.parser = new BindingParser();
     this.importManager = new ImportManager();
@@ -97,14 +100,18 @@ export class TypeInferrer {
       // Get the parent source file for import analysis
       let customImports: TypeImport[] = [];
       try {
-        // Use injected project if available, otherwise create temp project
-        const projectForImports = this.project || new Project();
-        const parentSourceFile =
-          projectForImports.addSourceFileAtPath(parentTsFilePath);
-        customImports = this.importManager.extractNeededImports(
-          typeMap,
-          parentSourceFile
-        );
+        // Use external project if available (for testing), otherwise use cached project
+        const parentSourceFile = this.externalProject
+          ? this.externalProject.getSourceFile(parentTsFilePath) ||
+            this.externalProject.addSourceFileAtPath(parentTsFilePath)
+          : this.projectCache.getOrAddSourceFile(parentTsFilePath);
+
+        if (parentSourceFile) {
+          customImports = this.importManager.extractNeededImports(
+            typeMap,
+            parentSourceFile
+          );
+        }
       } catch (error) {
         this.logger.warn('Failed to extract custom type imports:', error);
       }

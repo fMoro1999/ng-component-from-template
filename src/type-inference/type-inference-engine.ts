@@ -1,7 +1,7 @@
 import fs from 'fs';
-import path from 'path';
-import { Project, SourceFile } from 'ts-morph';
+import { Project, SourceFile, Type } from 'ts-morph';
 import { Logger, getGlobalLogger } from './logger';
+import { getProjectCache, ProjectCache } from './project-cache';
 
 export interface InferredType {
   propertyName: string;
@@ -16,36 +16,14 @@ export interface TypeInferenceContext {
 }
 
 export class TypeInferenceEngine {
-  private project: Project | null = null;
   private logger: Logger;
   private externalProject?: Project;
+  private projectCache: ProjectCache;
 
   constructor(logger?: Logger, project?: Project) {
     this.logger = logger || getGlobalLogger();
     this.externalProject = project;
-  }
-
-  /**
-   * Initialize ts-morph project
-   */
-  private initializeProject(filePath: string): void {
-    // If external project provided (e.g., for testing), use it
-    if (this.externalProject) {
-      this.project = this.externalProject;
-      return;
-    }
-
-    if (this.project) {
-      return;
-    }
-
-    const workspaceRoot = this.findWorkspaceRoot(filePath);
-    const tsConfigPath = this.findTsConfigPath(workspaceRoot);
-
-    this.project = new Project({
-      tsConfigFilePath: tsConfigPath,
-      skipAddingFilesFromTsConfig: true,
-    });
+    this.projectCache = getProjectCache();
   }
 
   /**
@@ -57,47 +35,13 @@ export class TypeInferenceEngine {
     const results = new Map<string, InferredType>();
 
     try {
-      this.initializeProject(context.parentTsFilePath);
+      // Get source file using appropriate method based on project type
+      const sourceFile = this.getSourceFile(context.parentTsFilePath);
 
-      // For in-memory projects, check if file exists in project
-      // For real projects, check filesystem
-      let sourceFile: SourceFile | undefined;
-
-      if (this.externalProject) {
-        // In-memory project: get existing source file
-        sourceFile = this.project!.getSourceFile(context.parentTsFilePath);
-        if (!sourceFile) {
-          this.logger.warn(`File not found: ${context.parentTsFilePath}`);
-          // Return unknown for all bindings
-          for (const [propertyName] of context.templateBindings) {
-            results.set(propertyName, {
-              propertyName,
-              type: 'unknown',
-              isInferred: false,
-              confidence: 'low',
-            });
-          }
-          return results;
-        }
-      } else {
-        // Real filesystem project: check if file exists first
-        if (!fs.existsSync(context.parentTsFilePath)) {
-          this.logger.warn(`File not found: ${context.parentTsFilePath}`);
-          // Return unknown for all bindings
-          for (const [propertyName] of context.templateBindings) {
-            results.set(propertyName, {
-              propertyName,
-              type: 'unknown',
-              isInferred: false,
-              confidence: 'low',
-            });
-          }
-          return results;
-        }
-
-        sourceFile = this.project!.addSourceFileAtPath(
-          context.parentTsFilePath
-        );
+      if (!sourceFile) {
+        this.logger.warn(`File not found: ${context.parentTsFilePath}`);
+        // Return unknown for all bindings
+        return this.createUnknownResultsForBindings(context.templateBindings);
       }
 
       for (const [
@@ -114,16 +58,45 @@ export class TypeInferenceEngine {
     } catch (error) {
       this.logger.error('Type inference error:', error);
       // Return unknown for all bindings on error
-      for (const [propertyName] of context.templateBindings) {
-        results.set(propertyName, {
-          propertyName,
-          type: 'unknown',
-          isInferred: false,
-          confidence: 'low',
-        });
-      }
+      return this.createUnknownResultsForBindings(context.templateBindings);
     }
 
+    return results;
+  }
+
+  /**
+   * Get source file using cached project or external project
+   */
+  private getSourceFile(filePath: string): SourceFile | undefined {
+    // If external project provided (e.g., for testing), use it
+    if (this.externalProject) {
+      return this.externalProject.getSourceFile(filePath);
+    }
+
+    // Check if file exists on filesystem
+    if (!fs.existsSync(filePath)) {
+      return undefined;
+    }
+
+    // Use cached project to get or add source file
+    return this.projectCache.getOrAddSourceFile(filePath);
+  }
+
+  /**
+   * Create unknown results for all bindings (used for error/missing file cases)
+   */
+  private createUnknownResultsForBindings(
+    bindings: Map<string, string>
+  ): Map<string, InferredType> {
+    const results = new Map<string, InferredType>();
+    for (const [propertyName] of bindings) {
+      results.set(propertyName, {
+        propertyName,
+        type: 'unknown',
+        isInferred: false,
+        confidence: 'low',
+      });
+    }
     return results;
   }
 
@@ -327,13 +300,13 @@ export class TypeInferenceEngine {
   /**
    * Get full type text including nullable and undefined types
    */
-  private getFullTypeText(type: any): string {
+  private getFullTypeText(type: Type): string {
     let typeText = type.getText();
 
     // Check if type is nullable or has undefined
     if (type.isUnion()) {
       const unionTypes = type.getUnionTypes();
-      const typeStrings = unionTypes.map((t: any) => t.getText());
+      const typeStrings = unionTypes.map((t: Type) => t.getText());
       typeText = typeStrings.join(' | ');
     }
 
@@ -364,41 +337,5 @@ export class TypeInferenceEngine {
     }
 
     return typeText;
-  }
-
-  /**
-   * Find workspace root directory
-   */
-  private findWorkspaceRoot(filePath: string): string {
-    let currentDir = path.dirname(filePath);
-
-    // Look for package.json
-    while (currentDir !== '/') {
-      if (fs.existsSync(path.join(currentDir, 'package.json'))) {
-        return currentDir;
-      }
-      currentDir = path.dirname(currentDir);
-    }
-
-    return path.dirname(filePath);
-  }
-
-  /**
-   * Find tsconfig.json in workspace
-   */
-  private findTsConfigPath(workspaceRoot: string): string | undefined {
-    const possiblePaths = [
-      path.join(workspaceRoot, 'tsconfig.json'),
-      path.join(workspaceRoot, 'tsconfig.app.json'),
-      path.join(workspaceRoot, 'src', 'tsconfig.json'),
-    ];
-
-    for (const tsConfigPath of possiblePaths) {
-      if (fs.existsSync(tsConfigPath)) {
-        return tsConfigPath;
-      }
-    }
-
-    return undefined;
   }
 }

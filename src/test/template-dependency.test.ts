@@ -501,4 +501,323 @@ suite('Template Dependency Detection Test Suite', () => {
       assert.strictEqual(result, '');
     });
   });
+
+  // Edge case tests for improved robustness
+  suite('Edge Cases - DirectiveDetector', () => {
+    let detector: DirectiveDetector;
+
+    setup(() => {
+      detector = new DirectiveDetector();
+    });
+
+    test('should ignore directives in HTML comments', () => {
+      const template = `
+        <!-- Example: *ngIf="condition" -->
+        <div>No directives here</div>
+      `;
+      const result = detector.detectDirectives(template);
+      assert.strictEqual(result.length, 0);
+    });
+
+    test('should handle multiline attribute syntax', () => {
+      const template = `
+        <div
+          *ngIf="condition"
+          [ngClass]="classes">
+          Content
+        </div>
+      `;
+      const result = detector.detectDirectives(template);
+
+      assert.ok(result.some((d) => d.name === 'NgIf'));
+      assert.ok(result.some((d) => d.name === 'NgClass'));
+    });
+
+    test('should detect NgModel with correct module (forms)', () => {
+      const template = '<input [(ngModel)]="value" />';
+      const result = detector.detectDirectives(template);
+
+      const ngModel = result.find((d) => d.name === 'NgModel');
+      assert.ok(ngModel);
+      assert.strictEqual(ngModel.module, '@angular/forms');
+    });
+
+    test('should handle whitespace variations in attribute brackets', () => {
+      const template = '<div [ ngClass ]="classes">Content</div>';
+      const result = detector.detectDirectives(template);
+
+      assert.ok(result.some((d) => d.name === 'NgClass'));
+    });
+
+    test('should detect ngModelChange event binding', () => {
+      const template = '<input [ngModel]="value" (ngModelChange)="onChange($event)" />';
+      const result = detector.detectDirectives(template);
+
+      assert.ok(result.some((d) => d.name === 'NgModel'));
+    });
+
+    test('should detect NgTemplateOutlet', () => {
+      const template = '<ng-container [ngTemplateOutlet]="myTemplate"></ng-container>';
+      const result = detector.detectDirectives(template);
+
+      assert.ok(result.some((d) => d.name === 'NgTemplateOutlet'));
+    });
+  });
+
+  suite('Edge Cases - PipeDetector', () => {
+    let detector: PipeDetector;
+
+    setup(() => {
+      detector = new PipeDetector();
+    });
+
+    test('should NOT detect pipes in logical OR expressions', () => {
+      const template = '<div>{{ value || defaultValue }}</div>';
+      const result = detector.detectPipes(template);
+
+      // Should not detect "defaultValue" as a pipe
+      assert.strictEqual(result.length, 0);
+    });
+
+    test('should handle pipes in property bindings', () => {
+      const template = '<div [title]="value | uppercase">Content</div>';
+      const result = detector.detectPipes(template);
+
+      assert.ok(result.some((p) => p.name === 'UpperCasePipe'));
+    });
+
+    test('should handle pipes in structural directive expressions', () => {
+      const template = '<div *ngIf="items$ | async as items">{{ items.length }}</div>';
+      const result = detector.detectPipes(template);
+
+      assert.ok(result.some((p) => p.name === 'AsyncPipe'));
+    });
+
+    test('should ignore pipes in HTML comments', () => {
+      const template = `
+        <!-- Use: {{ value | date }} -->
+        <div>No pipes here</div>
+      `;
+      const result = detector.detectPipes(template);
+      assert.strictEqual(result.length, 0);
+    });
+
+    test('should handle complex chained pipes with parameters', () => {
+      const template = '<div>{{ date | date:"yyyy-MM-dd" | uppercase | slice:0:4 }}</div>';
+      const result = detector.detectPipes(template);
+
+      assert.ok(result.some((p) => p.name === 'DatePipe'));
+      assert.ok(result.some((p) => p.name === 'UpperCasePipe'));
+      assert.ok(result.some((p) => p.name === 'SlicePipe'));
+    });
+
+    test('should handle pipes with single quotes around expression', () => {
+      const template = "<div [attr.title]='value | json'>Content</div>";
+      const result = detector.detectPipes(template);
+
+      assert.ok(result.some((p) => p.name === 'JsonPipe'));
+    });
+
+    test('should detect titlecase pipe', () => {
+      const template = '<div>{{ name | titlecase }}</div>';
+      const result = detector.detectPipes(template);
+
+      assert.ok(result.some((p) => p.name === 'TitleCasePipe'));
+    });
+
+    test('should detect keyvalue pipe', () => {
+      const template = '<div *ngFor="let item of map | keyvalue">{{ item.key }}</div>';
+      const result = detector.detectPipes(template);
+
+      assert.ok(result.some((p) => p.name === 'KeyValuePipe'));
+    });
+  });
+
+  suite('Edge Cases - ComponentDetector', () => {
+    let detector: ComponentDetector;
+
+    setup(() => {
+      detector = new ComponentDetector();
+    });
+
+    test('should ignore ng-template', () => {
+      const template = '<ng-template #myTemplate>Content</ng-template>';
+      const result = detector.detectComponents(template);
+
+      assert.strictEqual(result.length, 0);
+    });
+
+    test('should ignore ng-container', () => {
+      const template = '<ng-container *ngIf="show">Content</ng-container>';
+      const result = detector.detectComponents(template);
+
+      assert.strictEqual(result.length, 0);
+    });
+
+    test('should ignore ng-content', () => {
+      const template = '<ng-content select="[header]"></ng-content>';
+      const result = detector.detectComponents(template);
+
+      assert.strictEqual(result.length, 0);
+    });
+
+    test('should ignore SVG elements', () => {
+      const template = `
+        <svg>
+          <path d="M0,0 L10,10"></path>
+          <circle cx="5" cy="5" r="3"></circle>
+          <rect width="10" height="10"></rect>
+        </svg>
+      `;
+      const result = detector.detectComponents(template);
+
+      assert.strictEqual(result.length, 0);
+    });
+
+    test('should ignore components in HTML comments', () => {
+      const template = `
+        <!-- <app-hidden-component></app-hidden-component> -->
+        <div>Plain content</div>
+      `;
+      const result = detector.detectComponents(template);
+
+      assert.strictEqual(result.length, 0);
+    });
+
+    test('should detect PrimeNG components', () => {
+      const template = '<p-button label="Click me"></p-button>';
+      const result = detector.detectComponents(template);
+
+      assert.ok(result.some((c) => c.selector === 'p-button'));
+    });
+
+    test('should detect NG-ZORRO components', () => {
+      const template = '<nz-select [(ngModel)]="value"></nz-select>';
+      const result = detector.detectComponents(template);
+
+      assert.ok(result.some((c) => c.selector === 'nz-select'));
+    });
+
+    test('should detect CDK components', () => {
+      const template = '<cdk-virtual-scroll-viewport></cdk-virtual-scroll-viewport>';
+      const result = detector.detectComponents(template);
+
+      assert.ok(result.some((c) => c.selector === 'cdk-virtual-scroll-viewport'));
+    });
+
+    test('should handle nested components correctly', () => {
+      const template = `
+        <app-outer>
+          <app-inner>
+            <app-deepest></app-deepest>
+          </app-inner>
+        </app-outer>
+      `;
+      const result = detector.detectComponents(template);
+
+      assert.strictEqual(result.length, 3);
+      assert.ok(result.some((c) => c.selector === 'app-outer'));
+      assert.ok(result.some((c) => c.selector === 'app-inner'));
+      assert.ok(result.some((c) => c.selector === 'app-deepest'));
+    });
+
+    test('should handle component with complex multiline attributes', () => {
+      const template = `
+        <app-complex
+          [prop1]="value1"
+          [prop2]="value2"
+          (event1)="handler1($event)"
+          (event2)="handler2($event)"
+          #myRef>
+          Content
+        </app-complex>
+      `;
+      const result = detector.detectComponents(template);
+
+      assert.ok(result.some((c) => c.selector === 'app-complex'));
+    });
+  });
+
+  suite('Edge Cases - TemplateDependencyAnalyzer', () => {
+    let analyzer: TemplateDependencyAnalyzer;
+
+    setup(() => {
+      analyzer = new TemplateDependencyAnalyzer();
+    });
+
+    test('should handle empty template', () => {
+      const template = '';
+      const result = analyzer.analyze(template);
+
+      assert.strictEqual(result.directives.length, 0);
+      assert.strictEqual(result.pipes.length, 0);
+      assert.strictEqual(result.components.length, 0);
+    });
+
+    test('should handle template with only whitespace', () => {
+      const template = '   \n\t\n   ';
+      const result = analyzer.analyze(template);
+
+      assert.strictEqual(result.directives.length, 0);
+      assert.strictEqual(result.pipes.length, 0);
+      assert.strictEqual(result.components.length, 0);
+    });
+
+    test('should handle template with only comments', () => {
+      const template = `
+        <!-- Comment 1 -->
+        <!--
+          Multi-line comment
+          with *ngIf="test" | date
+        -->
+      `;
+      const result = analyzer.analyze(template);
+
+      assert.strictEqual(result.directives.length, 0);
+      assert.strictEqual(result.pipes.length, 0);
+      assert.strictEqual(result.components.length, 0);
+    });
+
+    test('should handle extremely nested template', () => {
+      const template = `
+        <div *ngIf="level1">
+          <div *ngIf="level2">
+            <div *ngIf="level3">
+              <div *ngIf="level4">
+                <div *ngIf="level5">
+                  {{ value | uppercase | lowercase }}
+                  <app-deep-component></app-deep-component>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+      const result = analyzer.analyze(template);
+
+      // Should only detect NgIf once despite multiple uses
+      const ngIfCount = result.directives.filter((d) => d.name === 'NgIf').length;
+      assert.strictEqual(ngIfCount, 1);
+
+      // Should detect both pipes
+      assert.ok(result.pipes.some((p) => p.name === 'UpperCasePipe'));
+      assert.ok(result.pipes.some((p) => p.name === 'LowerCasePipe'));
+
+      // Should detect the component
+      assert.ok(result.components.some((c) => c.selector === 'app-deep-component'));
+    });
+
+    test('should handle mixed single and double quotes', () => {
+      const template = `
+        <div *ngIf='show'>
+          <span [title]="tooltip | uppercase">{{ value | date:'short' }}</span>
+        </div>
+      `;
+      const result = analyzer.analyze(template);
+
+      assert.ok(result.directives.some((d) => d.name === 'NgIf'));
+      assert.ok(result.pipes.some((p) => p.name === 'UpperCasePipe'));
+      assert.ok(result.pipes.some((p) => p.name === 'DatePipe'));
+    });
+  });
 });
