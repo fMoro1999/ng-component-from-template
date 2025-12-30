@@ -1,4 +1,5 @@
 {
+  "publisher": "fMoro1999",
   "author": {
     "name": "Francesco Moro",
     "email": "fra.moro.99@gmail.com",
@@ -74,8 +75,9 @@
   },
   "scripts": {
     "compile": "webpack",
+    "compile:production": "NODE_ENV=production webpack",
     "watch": "webpack --watch",
-    "package": "./node_modules/.bin/vsce package",
+    "package": "npm run compile:production && ./node_modules/.bin/vsce package",
     "compile-tests": "tsc -p . --outDir out",
     "watch-tests": "tsc -p . -w --outDir out",
     "pretest": "npm run compile-tests && npm run compile && npm run lint",
