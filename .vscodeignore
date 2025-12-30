@@ -12,3 +12,8 @@ vsc-extension-quickstart.md
 **/*.map
 **/*.ts
 **/.vscode-test.*
+.claude/**
+pnpm-lock.yaml
+EXTENSION_ANALYSIS_AND_IMPLEMENTATION_PLAN.md
+LOGO_DESCRIPTION.md
+docs/**
