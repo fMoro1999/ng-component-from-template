@@ -1,27 +1,13 @@
 {
-  "publisher": "fMoro1999",
+  "activationEvents": [],
   "author": {
-    "name": "Francesco Moro",
     "email": "fra.moro.99@gmail.com",
+    "name": "Francesco Moro",
     "url": "https://github.com/fMoro1999"
-  },
-  "name": "ng-component-from-template",
-  "displayName": "Angular Component From Template",
-  "description": "An handy to scaffold components from the selected text starting on the selected text inside an Angular component template",
-  "icon": "logo.jpeg",
-  "version": "0.0.2",
-  "engines": {
-    "vscode": "^1.84.0"
-  },
-  "repository": {
-    "url": "https://github.com/fMoro1999/ng-component-from-template",
-    "type": "git"
   },
   "categories": [
     "Other"
   ],
-  "activationEvents": [],
-  "main": "./dist/extension.js",
   "contributes": {
     "commands": [
       {
@@ -30,75 +16,94 @@
       }
     ],
     "configuration": {
-      "title": "Angular Component From Template",
       "properties": {
-        "ngComponentFromTemplate.useSignalApis": {
-          "type": "boolean",
-          "default": true,
-          "description": "Generate components using Signal APIs (input/output) instead of decorators (@Input/@Output)"
-        },
         "ngComponentFromTemplate.changeDetectionStrategy": {
-          "type": "string",
           "default": "OnPush",
-          "description": "Change detection strategy for the component"
+          "description": "Change detection strategy for the component",
+          "type": "string"
         },
         "ngComponentFromTemplate.detectAngularVersion": {
-          "type": "boolean",
           "default": true,
-          "description": "Automatically detect Angular version and use appropriate APIs"
-        },
-        "ngComponentFromTemplate.minimumAngularVersion": {
-          "type": "number",
-          "default": 17,
-          "description": "Minimum Angular version to use Signal APIs (14-19)"
-        },
-        "ngComponentFromTemplate.useAngularLanguageService": {
-          "type": "boolean",
-          "default": true,
-          "description": "Delegate template dependency resolution to Angular Language Service. When enabled, ALS automatically resolves and imports required directives, pipes, and components. Falls back to built-in detection if ALS is unavailable."
+          "description": "Automatically detect Angular version and use appropriate APIs",
+          "type": "boolean"
         },
         "ngComponentFromTemplate.enablePreviewMode": {
-          "type": "boolean",
           "default": true,
-          "description": "Show interactive preview before generating component. When enabled, you can review and modify inputs/outputs, types, lifecycle hooks, and file contents before creation."
+          "description": "Show interactive preview before generating component. When enabled, you can review and modify inputs/outputs, types, lifecycle hooks, and file contents before creation.",
+          "type": "boolean"
+        },
+        "ngComponentFromTemplate.minimumAngularVersion": {
+          "default": 17,
+          "description": "Minimum Angular version to use Signal APIs (14-19)",
+          "type": "number"
+        },
+        "ngComponentFromTemplate.useAngularLanguageService": {
+          "default": true,
+          "description": "Delegate template dependency resolution to Angular Language Service. When enabled, ALS automatically resolves and imports required directives, pipes, and components. Falls back to built-in detection if ALS is unavailable.",
+          "type": "boolean"
+        },
+        "ngComponentFromTemplate.useSignalApis": {
+          "default": true,
+          "description": "Generate components using Signal APIs (input/output) instead of decorators (@Input/@Output)",
+          "type": "boolean"
         }
-      }
+      },
+      "title": "Angular Component From Template"
     },
     "menus": {
       "explorer/context": [
         {
-          "when": "resourceLangId == html",
-          "command": "ng-component-from-template.createAngularComponent"
+          "command": "ng-component-from-template.createAngularComponent",
+          "when": "resourceLangId == html"
         }
       ]
     }
   },
-  "scripts": {
-    "compile": "webpack",
-    "compile:production": "NODE_ENV=production webpack",
-    "watch": "webpack --watch",
-    "package": "npm run compile:production && ./node_modules/.bin/vsce package",
-    "compile-tests": "tsc -p . --outDir out",
-    "watch-tests": "tsc -p . -w --outDir out",
-    "pretest": "npm run compile-tests && npm run compile && npm run lint",
-    "lint": "eslint src --ext ts",
-    "test": "vscode-test"
+  "dependencies": {
+    "@vscode/vsce": "^3.7.1",
+    "ts-morph": "^21.0.1"
   },
+  "description": "An handy to scaffold components from the selected text starting on the selected text inside an Angular component template",
   "devDependencies": {
     "@types/mocha": "^10.0.6",
     "@types/node": "18.x",
+    "@types/sinon": "^21.0.0",
     "@types/vscode": "^1.84.0",
     "@typescript-eslint/eslint-plugin": "^6.13.1",
     "@vscode/test-cli": "^0.0.4",
     "@vscode/test-electron": "^2.3.8",
     "eslint": "^8.57.1",
+    "sinon": "^21.0.1",
     "ts-loader": "^9.5.1",
     "typescript": "^5.3.2",
     "webpack": "^5.89.0",
     "webpack-cli": "^5.1.4"
   },
-  "dependencies": {
-    "@vscode/vsce": "^3.7.1",
-    "ts-morph": "^21.0.1"
-  }
+  "displayName": "Angular Component From Template",
+  "engines": {
+    "vscode": "^1.84.0"
+  },
+  "extensionDependencies": [
+    "Angular.ng-template"
+  ],
+  "icon": "logo.jpeg",
+  "main": "./dist/extension.js",
+  "name": "ng-component-from-template",
+  "publisher": "fMoro1999",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/fMoro1999/ng-component-from-template"
+  },
+  "scripts": {
+    "compile": "webpack",
+    "compile-tests": "tsc -p . --outDir out",
+    "compile:production": "NODE_ENV=production webpack",
+    "lint": "eslint src --ext ts",
+    "package": "npm run compile:production && ./node_modules/.bin/vsce package",
+    "pretest": "npm run compile-tests && npm run compile && npm run lint",
+    "test": "vscode-test",
+    "watch": "webpack --watch",
+    "watch-tests": "tsc -p . -w --outDir out"
+  },
+  "version": "0.0.2"
 }
